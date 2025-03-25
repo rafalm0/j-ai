@@ -1,8 +1,7 @@
 from together import Together
 from resp_evaluator import Evaluator
 import json
-
-api_key = 'tgp_v1_rjii1tV0QZJWdEtnsho2vyj2zshhjr29qhh9xui1eoU'
+from keys import api_key
 
 client = Together(api_key=api_key)
 model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
