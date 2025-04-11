@@ -6,6 +6,7 @@ import uuid
 from keys import api_key, db_password
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import random
 
 # Database connection settings
 DB_SETTINGS = {
@@ -152,3 +153,36 @@ def get_interviews():
             cursor.execute("SELECT * FROM interview_data;")
             data = cursor.fetchall()
     return {"interviews": data}
+
+
+@app.post("/admin/populate-db")
+def populate_db():
+    sample_data = []
+
+    for _ in range(10):  # Generate 10 random records
+        age = random.randint(18, 65)
+        is_journalist = random.choice([True, False])
+        years_of_practice = random.randint(0, age - 18) if is_journalist else 0
+
+        internet_score = random.randint(-5, 5)
+        internet_opinion = internet_score > 0  # True if positive, False if negative
+
+        gpt_score = random.randint(-5, 5)
+        gpt_opinion = gpt_score > 0  # True if positive, False if negative
+
+        sample_data.append((str(uuid.uuid4()), age, is_journalist, years_of_practice,
+                            internet_opinion, internet_score, gpt_opinion, gpt_score))
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.executemany('''
+                    INSERT INTO interview_data (session_id, age, is_journalist, years_of_practice, 
+                                                internet_opinion, internet_opinion_score, 
+                                                gpt_opinion, gpt_opinion_score)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ''', sample_data)
+                conn.commit()
+        return {"message": "Database populated with sample data."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
