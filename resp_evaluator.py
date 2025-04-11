@@ -5,14 +5,12 @@ from pydantic import BaseModel, Field, ValidationError
 
 class ExtractedData(BaseModel):
     age: int | None = Field(default=None)
-    name: str | None = Field(default=None)
-    gender: str | None = Field(default=None)
     is_journalist: bool | None = Field(default=None)
     years_of_practice: int | None = Field(default=None)
-    internet_opinion: str | None = Field(default=None) # resumed opinion
-    was_internet_good_for_journalist: bool | None = Field(default=None)
-    gpt_opinion: str | None = Field(default=None) # resumed opinion
-    is_gpt_good_for_journalist: bool | None = Field(default=None)
+    internet_opinion: bool | None = Field(default=None)  # True if positive, False if negative
+    internet_opinion_score: int | None = Field(default=None)  # Score from -5 to 5
+    gpt_opinion: bool | None = Field(default=None)  # True if positive, False if negative
+    gpt_opinion_score: int | None = Field(default=None)  # Score from -5 to 5
 
 
 class Evaluator:
@@ -20,8 +18,8 @@ class Evaluator:
                  model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
                  extract_data=None):
         if extract_data is None:
-            extract_data = ['age', 'name', 'gender', 'is_journalist', 'year_of_practice', 'internet_opinion',
-                            'was_internet_good_for_journalist', 'gpt_opinions', 'is_gpt_good_for_journalist']
+            extract_data = ['age', 'is_journalist', 'years_of_practice', 'internet_opinion',
+                            'internet_opinion_score', 'gpt_opinion', 'gpt_opinion_score']
         self.client = api_client
         self.memory = {x: None for x in extract_data}
         self.api_key = api_key
@@ -33,32 +31,30 @@ class Evaluator:
         self.prompt = """Extract the following information from the conversation as a JSON object inside `$` markers.
         Ensure the JSON is properly formatted with the correct types:
 
-        - name: string (e.g., "Alex")
         - age: integer or null (e.g., 25 or null)
-        - gender: string or null (e.g., "male", "female", "non-binary", or null)
         - is_journalist: boolean or null (true if the person is a journalist, otherwise false or null)
         - years_of_practice: integer or null (number of years, or null if unknown)
-        - internet_opinion: string or null (short summary of opinion)
-        - was_internet_good_for_journalist: boolean or null (true if they think it was good, otherwise false)
-        - gpt_opinion: string or null (short summary of opinion on GPT)
-        - is_gpt_good_for_journalist: boolean or null (true if they think GPT is good, otherwise false)
+        - internet_opinion: boolean or null (true if positive, false if negative)
+        - internet_opinion_score: integer or null (sentiment score from -5 to 5)
+        - gpt_opinion: boolean or null (true if positive, false if negative)
+        - gpt_opinion_score: integer or null (sentiment score from -5 to 5)
 
         Example conversations:
 
         User: Hi, I’m Alex. 
-        LLM Output: ${"name": "Alex", "age": null, "gender": null, "is_journalist": null, "years_of_practice": null, 
-                      "internet_opinion": null, "was_internet_good_for_journalist": null, 
-                      "gpt_opinion": null, "is_gpt_good_for_journalist": null}$
+        LLM Output: ${"age": null, "is_journalist": null, "years_of_practice": null, 
+                      "internet_opinion": null, "internet_opinion_score": null, 
+                      "gpt_opinion": null, "gpt_opinion_score": null}$
 
         User: I'm 25 and I've been a journalist for 5 years.
-        LLM Output: ${"name": "Alex", "age": 25, "gender": null, "is_journalist": true, "years_of_practice": 5, 
-                      "internet_opinion": null, "was_internet_good_for_journalist": null, 
-                      "gpt_opinion": null, "is_gpt_good_for_journalist": null}$
+        LLM Output: ${"age": 25, "is_journalist": true, "years_of_practice": 5, 
+                      "internet_opinion": null, "internet_opinion_score": null, 
+                      "gpt_opinion": null, "gpt_opinion_score": null}$
 
         User: I think the internet was great for journalism, but GPT might be harmful.
-        LLM Output: ${"name": "Alex", "age": 25, "gender": null, "is_journalist": true, "years_of_practice": 5, 
-                      "internet_opinion": "great for journalism", "was_internet_good_for_journalist": true, 
-                      "gpt_opinion": "might be harmful", "is_gpt_good_for_journalist": false}$
+        LLM Output: ${"age": 25, "is_journalist": true, "years_of_practice": 5, 
+                      "internet_opinion": true, "internet_opinion_score": 4, 
+                      "gpt_opinion": false, "gpt_opinion_score": -3}$
 
         **DO NOT** return any extra text, only the JSON object inside `$` markers.
         """

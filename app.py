@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from together import Together
 from resp_evaluator import Evaluator
@@ -6,7 +6,6 @@ import uuid
 from keys import api_key, db_password
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import os
 
 # Database connection settings
 DB_SETTINGS = {
@@ -19,35 +18,34 @@ DB_SETTINGS = {
 
 app = FastAPI()
 
-user_data = ['name', 'age', 'gender']
+user_data = ['age', 'is_journalist', 'years_of_practice', 'internet_opinion', 'internet_opinion_score', 'gpt_opinion', 'gpt_opinion_score']
 model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
 
 client = Together(api_key=api_key)
 sessions = {}  # Store user sessions
 
-
 class MessageInput(BaseModel):
     session_id: str | None = None
     message: str
 
-
 @app.post("/chat")
 async def chat(message_input: MessageInput):
-    # Assign session ID
     session_id = message_input.session_id or str(uuid.uuid4())
     if session_id not in sessions:
         sessions[session_id] = {
             "evaluator": Evaluator(api_client=client, api_key=api_key),
             "messages": [
-                {"role": "system", "content": f"""Talk to the user while interviewing them for: {', '.join(user_data)}. 
-                The idea is to talk to persons saying interesting things abour the arrival of the internet and how it 
-                compares to the arrival of AI in the field of journalist. 
-                Do not simply ask questions to extract info, try to talk about the subject while also asking questions 
-                to figure out the information needed. Try to get their opinion on the arrival of the internet, and the 
-                arrival of the GPT/ generalists AI and how it could affect the job of the journalist. Our idea is to get
-                to know the user and talk saying cool and interesting facts while also trying to extract some info. Try 
-                to get maybe one or two info maximum per sentence, no need to ask all info in one question, we want small
-                easy to digest conversations."""}
+                {"role": "system", "content": f"""Engage in a conversation with the user while subtly guiding the 
+                discussion toward extracting {', '.join(user_data)}. Instead of directly interrogating them, 
+                make the conversation engaging by discussing how the rise of the internet impacted journalism and 
+                drawing parallels with the current rise of AI, particularly generalist models like GPT. Share 
+                interesting facts and insights along the way, making it feel like a natural discussion rather than an 
+                interview. Ask for their thoughts on the evolution of journalism with the internet and AI—how they 
+                see these shifts impacting the profession. Try to weave in one or two pieces of required information 
+                per message, keeping the conversation flowing smoothly with small, digestible exchanges rather than 
+                overwhelming the user with too many questions at once. Once you have gathered most or all of the 
+                necessary information, mention that they can click the 'People’s Perception' button if they’d like to 
+                see how others feel about these changes in journalism."""}
             ],
             "data": {}
         }
@@ -68,14 +66,13 @@ async def chat(message_input: MessageInput):
     session["messages"].append({"role": "assistant", "content": text_response})
 
     # Send messages to evaluator for extraction
-    evaluator.submit_message({"role": "user", "content": f"User: {message_input.message}"})
-    evaluator.submit_message({"role": "user", "content": f"Interviewer: {text_response}"})
+    evaluator.submit_message({"role": "user", "content": message_input.message})
+    evaluator.submit_message({"role": "user", "content": text_response})
 
     new_data = evaluator.evaluate()
     session["data"].update(new_data)
 
     return {"session_id": session_id, "response": text_response, "data_collected": new_data}
-
 
 @app.get("/chat/{session_id}")
 async def get_chat(session_id: str):
@@ -83,14 +80,10 @@ async def get_chat(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
     return {"messages": sessions[session_id]["messages"]}
 
-
-
 # --------------------------------------------------- DB CALLS -------------------------------------------------
-
 
 def get_db_connection():
     return psycopg2.connect(**DB_SETTINGS, cursor_factory=RealDictCursor)
-
 
 # Admin function to initialize the database
 def initialize_db():
@@ -99,15 +92,13 @@ def initialize_db():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS interview_data (
                     id SERIAL PRIMARY KEY,
-                    name TEXT,
                     age INTEGER,
-                    gender TEXT,
                     is_journalist BOOLEAN,
                     years_of_practice INTEGER,
-                    internet_opinion TEXT,
-                    was_internet_good_for_journalist BOOLEAN,
-                    gpt_opinion TEXT,
-                    is_gpt_good_for_journalist BOOLEAN
+                    internet_opinion BOOLEAN,
+                    internet_opinion_score INTEGER,
+                    gpt_opinion BOOLEAN,
+                    gpt_opinion_score INTEGER
                 );
             """)
             conn.commit()
@@ -125,28 +116,28 @@ def init_db():
 def reset_db():
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("DELETE FROM interview_data;")
+            cursor.execute("DROP TABLE IF EXISTS interview_data;")  # Drop the table
             conn.commit()
     return {"message": "Database reset successfully."}
 
 
-@app.post("/save-interview")
-def save_interview(session_id: int):
-    session = sessions[session_id]
-    evaluator = session["evaluator"]
-    data = evaluator.memory  # Retrieve stored memory from evaluator
+@app.post("/save-interview/{session_id}")
+def save_interview(session_id: str):
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    data = sessions[session_id]["data"]
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute('''
-                    INSERT INTO interviews (session_id, name, age, gender, is_journalist, years_of_practice, 
-                                           internet_opinion, was_internet_good_for_journalist, gpt_opinion, 
-                                           is_gpt_good_for_journalist)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ''', (session_id, data.get("name"), data.get("age"), data.get("gender"),
-                      data.get("is_journalist"), data.get("years_of_practice"), data.get("internet_opinion"),
-                      data.get("was_internet_good_for_journalist"), data.get("gpt_opinion"),
-                      data.get("is_gpt_good_for_journalist")))
+                    INSERT INTO interview_data (age, is_journalist, years_of_practice, 
+                                               internet_opinion, internet_opinion_score, 
+                                               gpt_opinion, gpt_opinion_score)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ''', (data.get("age"), data.get("is_journalist"), data.get("years_of_practice"),
+                      data.get("internet_opinion"), data.get("internet_opinion_score"),
+                      data.get("gpt_opinion"), data.get("gpt_opinion_score")))
                 conn.commit()
         return {"message": "Interview data saved successfully"}
     except Exception as e:
