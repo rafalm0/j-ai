@@ -170,17 +170,17 @@ def populate_db():
         gpt_score = random.randint(-5, 5)
         gpt_opinion = gpt_score > 0  # True if positive, False if negative
 
-        sample_data.append((str(uuid.uuid4()), age, is_journalist, years_of_practice,
+        sample_data.append(( age, is_journalist, years_of_practice,
                             internet_opinion, internet_score, gpt_opinion, gpt_score))
 
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.executemany('''
-                    INSERT INTO interview_data (session_id, age, is_journalist, years_of_practice, 
+                    INSERT INTO interview_data (age, is_journalist, years_of_practice, 
                                                 internet_opinion, internet_opinion_score, 
                                                 gpt_opinion, gpt_opinion_score)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ''', sample_data)
                 conn.commit()
         return {"message": "Database populated with sample data."}
