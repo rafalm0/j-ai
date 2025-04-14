@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from together import Together
 from resp_evaluator import Evaluator
@@ -19,17 +20,35 @@ DB_SETTINGS = {
 
 app = FastAPI()
 
-user_data = ['age', 'is_journalist', 'years_of_practice', 'internet_opinion', 'internet_opinion_score', 'gpt_opinion', 'gpt_opinion_score']
+origins = [
+    "http://localhost",
+    "*",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+user_data = ['age', 'is_journalist', 'years_of_practice', 'internet_opinion', 'internet_opinion_score', 'gpt_opinion',
+             'gpt_opinion_score']
 model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
 
 client = Together(api_key=api_key)
 sessions = {}  # Store user sessions
 
+
 class MessageInput(BaseModel):
     session_id: str | None = None
     message: str
 
+
 @app.post("/chat")
+@app.options("/chat")
 async def chat(message_input: MessageInput):
     session_id = message_input.session_id or str(uuid.uuid4())
     if session_id not in sessions:
@@ -75,16 +94,19 @@ async def chat(message_input: MessageInput):
 
     return {"session_id": session_id, "response": text_response, "data_collected": new_data}
 
+
 @app.get("/chat/{session_id}")
 async def get_chat(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"messages": sessions[session_id]["messages"]}
 
+
 # --------------------------------------------------- DB CALLS -------------------------------------------------
 
 def get_db_connection():
     return psycopg2.connect(**DB_SETTINGS, cursor_factory=RealDictCursor)
+
 
 # Admin function to initialize the database
 def initialize_db():
@@ -170,7 +192,7 @@ def populate_db():
         gpt_score = random.randint(-5, 5)
         gpt_opinion = gpt_score > 0  # True if positive, False if negative
 
-        sample_data.append(( age, is_journalist, years_of_practice,
+        sample_data.append((age, is_journalist, years_of_practice,
                             internet_opinion, internet_score, gpt_opinion, gpt_score))
 
     try:
