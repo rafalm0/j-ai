@@ -35,9 +35,9 @@ class Evaluator:
         - is_journalist: boolean or null (true if the person is a journalist, otherwise false or null)
         - years_of_practice: integer or null (number of years, or null if unknown)
         - internet_opinion: boolean or null (true if positive, false if negative)
-        - internet_opinion_score: integer or null (sentiment score from -5 to 5)
+        - internet_opinion_score: integer or null (sentiment score from 0 to 10)
         - gpt_opinion: boolean or null (true if positive, false if negative)
-        - gpt_opinion_score: integer or null (sentiment score from -5 to 5)
+        - gpt_opinion_score: integer or null (sentiment score from 0 to 10)
 
         Example conversations:
 
@@ -54,7 +54,7 @@ class Evaluator:
         User: I think the internet was great for journalism, but GPT might be harmful.
         LLM Output: ${"age": 25, "is_journalist": true, "years_of_practice": 5, 
                       "internet_opinion": true, "internet_opinion_score": 4, 
-                      "gpt_opinion": false, "gpt_opinion_score": -3}$
+                      "gpt_opinion": false, "gpt_opinion_score": 2}$
 
         **DO NOT** return any extra text, only the JSON object inside `$` markers.
         """
