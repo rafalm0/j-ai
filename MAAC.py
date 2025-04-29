@@ -1,14 +1,15 @@
-"""Multi-Agente Augmented Conversation"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from together import Together
-from old_implementation.resp_evaluator import Evaluator
 import uuid
+from together import Together
+from AiA import Bot  # This is your Bot class file
 from keys import api_key
 
+# Initialize
 app = FastAPI()
 
+# Allow CORS
 origins = [
     "http://localhost",
     "*",
@@ -23,53 +24,73 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Together API client
+client = Together(api_key=api_key)
 model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
 
-client = Together(api_key=api_key)
-sessions = {}  # Store user sessions
+# Define your bots
+bot_1999 = Bot(
+    name="1999 Bot",
+    persona_prompt="You are a journalist from 1999, skeptical but curious about new technologies like the internet.",
+    model=model_name,
+    client=client
+)
 
+bot_2024 = Bot(
+    name="2024 Bot",
+    persona_prompt="You are a modern AI-savvy journalist from 2024, enthusiastic about artificial intelligence and internet advancements.",
+    model=model_name,
+    client=client
+)
 
-class MessageInput(BaseModel):
+# Store conversations per session
+sessions = {}
+
+class ChatInput(BaseModel):
     session_id: str | None = None
-    message: str
+    topic: str
+    continue_conversation: bool = False  # If False, we start a new conversation
 
+@app.post("/multi-agent-chat")
+async def multi_agent_chat(input_data: ChatInput):
+    session_id = input_data.session_id or str(uuid.uuid4())
 
-@app.post("/chat")
-@app.options("/chat")
-async def chat(message_input: MessageInput):
-    session_id = message_input.session_id or str(uuid.uuid4())
-    if session_id not in sessions:
+    # If new conversation, reset histories
+    if not input_data.continue_conversation or session_id not in sessions:
+        bot_1999.history = []
+        bot_2024.history = []
         sessions[session_id] = {
-            "evaluator": Evaluator(api_client=client, api_key=api_key),
-            "messages": [
-                {"role": "system", "content": f"""Engage in a conversation with the user while subtly guiding the 
-                discussion toward extracting the users name,if they are a journalist,  how their opinion on the rise 
-                of the internet and also on the rise of AI, and how these interact with journalism. Instead of 
-                directly interrogating them, make the conversation engaging by discussing how the rise of the 
-                internet impacted journalism and drawing parallels with the current rise of AI, particularly 
-                generalist models like GPT. Share interesting facts and insights along the way, making it feel like a 
-                natural discussion rather than an interview. Ask for their thoughts on the evolution of journalism 
-                with the internet and AI—how they see these shifts impacting the profession. Try to weave in one or 
-                two pieces of required information per message, keeping the conversation flowing smoothly with small, 
-                digestible exchanges rather than overwhelming the user with too many questions at once. Once you have 
-                gathered most or all of the necessary information, mention that they can click the 'People’s 
-                Perception' button if they’d like to see how others feel about these changes in journalism."""}
-            ],
-            "data": {}
+            "turn": 0,
+            "topic": input_data.topic,
+            "history": []
         }
 
     session = sessions[session_id]
+    topic = session["topic"]
+    turn = session["turn"]
 
-    # Generate LLM response
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=session["messages"]
-    )
+    # Decide which bot speaks next
+    current_bot = bot_1999 if turn % 2 == 0 else bot_2024
+    previous_bot = bot_2024 if turn % 2 == 0 else bot_1999
 
-    text_response = response.choices[0].message.content
-    session["messages"].append({"role": "assistant", "content": text_response})
+    # If it's not the first turn, pass the last message as input
+    if session["history"]:
+        last_message = session["history"][-1]["message"]
+        current_bot.history.append({"role": "user", "content": last_message})
 
+    # Generate bot response
+    response = current_bot.generate_response(topic)
+    session["history"].append({
+        "bot": current_bot.name,
+        "message": response
+    })
 
+    # Increment turn
+    session["turn"] += 1
 
-
-    return message_input.message
+    return {
+        "session_id": session_id,
+        "bot_name": current_bot.name,
+        "response": response,
+        "full_conversation": session["history"]
+    }

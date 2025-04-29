@@ -78,17 +78,23 @@ def save_embedded_jsonl(path: str, enriched_data: List[dict]):
 
 def load_embeddings(path):
     with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-        return data
+        data_ = json.load(f)
+        return data_
 
 
 # EXAMPLE USAGE
 if __name__ == "__main__":
+    year = '2024'
+
     client = Together(api_key=api_key)
-    year = '1999'
+
+    if year == '2024':
+        subject = 'the arrival of the generative AI and the effects on journalist'
+    else:
+        subject = 'the arrival of the internet and the affects on journalist'
     jsonl_path = f"RAG-processed/nyt_{year}_full_clean.jsonl"  # Update this path
     embedding_output = f"RAG-embeddings/nyt_{year}_embedded.jsonl"
-    query = f"What did people think of the internet in {year}?"
+    query = f"What did people think of the {subject} in {year}?"
 
     if not os.path.exists(embedding_output):
         data = load_and_embed_jsonl(jsonl_path)
@@ -114,7 +120,8 @@ if __name__ == "__main__":
         model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
         messages=[
             {"role": "system", "content": "You are a helpful chatbot."},
-            {"role": "user", "content": f"Answer the question: {query}. Use only this info:\n\n{reranked_chunks}"},
+            {"role": "user",
+             "content": f"Answer the question: {query}. Use this info as extra source from interview of the new york times:\n\n{reranked_chunks}"},
         ],
     )
     print("\nRESPONSE:")
