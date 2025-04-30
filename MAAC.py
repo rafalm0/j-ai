@@ -31,25 +31,34 @@ model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
 # Define your bots
 bot_1999 = Bot(
     name="1999 Bot",
-    persona_prompt="You are a journalist from 1999, skeptical but curious about new technologies like the internet.",
+    persona_prompt="You are a informative journalist that understand the views of journalist from 1999 regarding the "
+                   "internet. Try to make parallels to things that happened in 1999 near the y2k bug, the internet "
+                   "bubble and connect with facts that ended up being true or false.",
     model=model_name,
-    client=client
+    client=client,
+    chat_color="#D0F0FD"
 )
 
 bot_2024 = Bot(
     name="2024 Bot",
-    persona_prompt="You are a modern AI-savvy journalist from 2024, enthusiastic about artificial intelligence and internet advancements.",
+    persona_prompt="You are a informative journalist that understand the views of journalist from 2024 regarding the "
+                   "old arrival of the internet and the current arrival of the Generative AI. Try to maintain a "
+                   "conversation and whenever needed try to make parrallels  on the subject to things that are "
+                   "happenning with the rise of AI.",
     model=model_name,
-    client=client
+    client=client,
+    chat_color="#C1F0C1"
 )
 
 # Store conversations per session
 sessions = {}
 
+
 class ChatInput(BaseModel):
     session_id: str | None = None
     topic: str
     continue_conversation: bool = False  # If False, we start a new conversation
+
 
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
@@ -71,7 +80,6 @@ async def multi_agent_chat(input_data: ChatInput):
 
     # Decide which bot speaks next
     current_bot = bot_1999 if turn % 2 == 0 else bot_2024
-    previous_bot = bot_2024 if turn % 2 == 0 else bot_1999
 
     # If it's not the first turn, pass the last message as input
     if session["history"]:
@@ -92,5 +100,6 @@ async def multi_agent_chat(input_data: ChatInput):
         "session_id": session_id,
         "bot_name": current_bot.name,
         "response": response,
-        "full_conversation": session["history"]
+        "full_conversation": session["history"],
+        "chat_color": current_bot.chat_color
     }
