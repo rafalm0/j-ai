@@ -84,7 +84,7 @@ def load_embeddings(path):
 
 # EXAMPLE USAGE
 if __name__ == "__main__":
-    year = '2024'
+    year = '1999'
 
     client = Together(api_key=api_key)
 
