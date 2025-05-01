@@ -12,6 +12,7 @@ source_files = [
     {"path": "RAG-source/nyt_2024_raw.txt", "output": "RAG-processed/nyt_2024_full_clean.jsonl", "year": "2024"},
 ]
 
+
 # ---- UTILITY FUNCTIONS ----
 
 def clean_text(text: str) -> str:
@@ -19,32 +20,54 @@ def clean_text(text: str) -> str:
     text = re.sub(r'Page \d+ of \d+ © 2025 Factiva, Inc. All rights reserved\.', '\n', text)
     text = re.sub(r'© \d{4} The New York Times Company\. All Rights Reserved\.', '\n', text)
     text = re.sub(r'NYTimes\.com Feed|NYTFEED|English|Document [A-Z0-9]+', '\n', text)
-    text = re.sub('\(c\) 1999 New York Times Company', '\n', text)
+    text = re.sub("'", '', text)
+    # text = re.sub('\(c\) 1999 New York Times Company', '\n', text)
     # text = re.sub(r'\s+', ' ', text).strip()
     return text
 
 
 def split_articles_by_author(text: str):
     """Split text into articles using 'By [AUTHOR]' as markers."""
-    parts = re.split(r'', text)
+    parts = re.split(r'\nDocument nytf', text)[:-1]
     articles = []
 
-    for i in range(1, len(parts)):
-        author_and_body = parts[i]
-        # Extract the author name (until first newline)
-        author_line_split = author_and_body.split("\n", 1)
-        author = author_line_split[0].strip()
+    for i in range(0, len(parts)):
+        article = parts[i]
+        article = article.split('\n\n\n\n\x0c')[1][1:]
+        headers = article.split('\n')[:12]
+        author = None
+        title = None
+        try:
+            body = article.split(" New York Times Company")[1]
+        except IndexError:
+            body = article.split("International New York Times")[1]
 
-        # The rest is the body
-        body = author_line_split[1].strip() if len(author_line_split) > 1 else ""
+        for j, header in enumerate(headers):
+            if 'By ' in header:
+                author = header.split('By ')[-1]
+                if headers[j - 1] != ' ':
+                    title = headers[j - 1]
+                else:
+                    title = headers[j - 2]
+                break
+            if ('words' in header) and (author is None): # backup author aquiring by looking for words
+                author = headers[j - 1].split('By ')[-1]
+                if headers[j - 2] != ' ':
+                    title = headers[j - 2]
+                else:
+                    title = headers[j - 3]
 
-        # Try to guess title from the last line before "By"
-        previous_block = parts[i-1]
-        title_candidate = previous_block.strip().split("\n")[-1].strip()
+        if (author == None) or (title == None):
+            print("Author or title not found")
 
+        if author == 'BUSINESS DIGEST':
+            title = 'BUSINESS DIGEST'
+
+        if body == '':
+            print(f'Error on article {title} by author')
         articles.append({
             "author": author,
-            "title": title_candidate,
+            "title": title,
             "body": body
         })
 
@@ -70,6 +93,7 @@ def chunk_text(text: str):
 
     return chunks
 
+
 # ---- MAIN PROCESSING ----
 
 for source in source_files:
@@ -90,7 +114,7 @@ for source in source_files:
             chunks = chunk_text(article["body"])
             for chunk_idx, chunk in enumerate(chunks):
                 record = {
-                    "id": f"nyt_{source['year']}_{idx+1:04}_chunk_{chunk_idx+1}",
+                    "id": f"nyt_{source['year']}_{idx + 1:04}_chunk_{chunk_idx + 1}",
                     "title": article["title"],
                     "author": article["author"],
                     "chunk": chunk
