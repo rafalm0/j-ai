@@ -2,9 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
-from Util import vector_retreival,rerank, load_embeddings
 from together import Together
-from AiA import Bot  # This is your Bot class file
+from AiA import Bot
 from keys import api_key
 
 # Initialize
