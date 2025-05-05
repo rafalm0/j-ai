@@ -41,7 +41,7 @@ def create_chunks(document, chunk_size=300, overlap=50):
     return [document[i: i + chunk_size] for i in range(0, len(document), chunk_size - overlap)]
 
 
-def generate_embeddings(client,input_texts: List[str], model_api_string: str) -> np.ndarray:
+def generate_embeddings(client, input_texts: List[str], model_api_string: str) -> np.ndarray:
     """Generate embeddings from Together python library.
 
     Args:
@@ -77,9 +77,13 @@ def save_embedded_jsonl(path: str, enriched_data: List[dict]):
 
 
 def load_embeddings(path):
+    jsonl = []
     with open(path, "r", encoding="utf-8") as f:
-        data_ = json.load(f)
-        return data_
+        for line_ in tqdm(f.readlines()):
+            data_ = json.loads(line_)
+            jsonl.append(data_)
+        return jsonl
+
 
 # EXAMPLE USAGE
 # if __name__ == "__main__":
