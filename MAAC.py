@@ -4,7 +4,13 @@ from pydantic import BaseModel
 import uuid
 from together import Together
 from AiA import Bot
-from keys import api_key
+import os
+import sys
+if os.path.exists("keys.py"):
+    from keys import api_key
+else:
+    api_key = os.environ['API_KEY']
+
 
 # Initialize
 app = FastAPI()
