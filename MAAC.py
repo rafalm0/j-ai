@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
+from Util import vector_retreival,rerank, load_embeddings
 from together import Together
 from AiA import Bot  # This is your Bot class file
 from keys import api_key
@@ -36,7 +37,8 @@ bot_1999 = Bot(
                    "bubble and connect with facts that ended up being true or false.",
     model=model_name,
     client=client,
-    chat_color="#D0F0FD"
+    chat_color="#D0F0FD",
+    knowledge_base='RAG-embeddings/nyt_1999_embedded.jsonl'
 )
 
 bot_2024 = Bot(
@@ -47,7 +49,8 @@ bot_2024 = Bot(
                    "happenning with the rise of AI.",
     model=model_name,
     client=client,
-    chat_color="#C1F0C1"
+    chat_color="#C1F0C1",
+    knowledge_base='RAG-embeddings/nyt_2024_embedded.jsonl'
 )
 
 # Store conversations per session
