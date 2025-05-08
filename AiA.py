@@ -10,34 +10,34 @@ class Bot:
         self.client = client
         self.history = []
         self.chat_color = chat_color
-        self.knowledge_base = None
-        if knowledge_base is not None:
-            self.knowledge_base = load_embeddings(knowledge_base)
+        self.knowledge_base = load_embeddings(knowledge_base) if knowledge_base else None
 
-    def generate_response(self, subject, use_knowledge=False, top_k=5):
+    def generate_response(self, subject: str, use_knowledge: bool = True, top_k: int = 5):
+        system_messages = [{"role": "system", "content": self.persona_prompt}]
 
-        if (not use_knowledge) and (self.knowledge_base is None):
-            use_knowledge = False
-
-        situation_prompt = f" Stick to the subject: {subject}, and give your thought, continuing a chat."
-        if use_knowledge:
+        if use_knowledge and self.knowledge_base:
             chunks = [d["chunk"] for d in self.knowledge_base]
             embeddings = np.array([d["embedding"] for d in self.knowledge_base])
 
-            top_k_indices = vector_retreival(query=situation_prompt, top_k=top_k, vector_index=embeddings)
+            top_k_indices = vector_retreival(query=subject, top_k=top_k, vector_index=embeddings)
             top_k_chunks = [chunks[i] for i in top_k_indices]
 
-            reranked_indices = rerank(situation_prompt, chunks=top_k_chunks, top_k=top_k, query=situation_prompt)
+            reranked_indices = rerank(self.client, chunks=top_k_chunks, top_k=top_k,query=subject)
             reranked_chunks = "\n\n".join([top_k_chunks[i] for i in reranked_indices])
-            situation_prompt += f"Use this info as extra source from interview of the new york times:\n\n{reranked_chunks}"
 
-        messages = [
-            {"role": "system", "content": self.persona_prompt + situation_prompt},
-            *self.history
-        ]
+            rag_prompt = (
+                    "Use the following context extracted from NYT interviews to inform your next response. "
+                    "Reference it only if it's relevant to the topic:\n\n" + reranked_chunks.strip()
+            )
+            system_messages.append({"role": "system", "content": rag_prompt})
+
+        user_prompt = f"Topic: {subject}. Continue the conversation naturally, be brief and conversational."
+        messages = system_messages + self.history + [{"role": "user", "content": user_prompt}]
+
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=messages
+            messages=messages,
+            max_tokens=250
         )
         reply = response.choices[0].message.content
         self.history.append({"role": "assistant", "content": reply})
