@@ -12,8 +12,14 @@ class Bot:
         self.chat_color = chat_color
         self.knowledge_base = load_embeddings(knowledge_base) if knowledge_base else None
 
-    def generate_response(self, subject: str, use_knowledge: bool = True, top_k: int = 5):
-        system_messages = [{"role": "system", "content": self.persona_prompt}]
+    def clean_history(self):
+        self.history = []
+        return
+
+    def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5):
+        system_messages = [{"role": "system", "content": self.persona_prompt},
+                           {"role": "system", "content": f"Topic: {subject}. Continue the conversation naturally, "
+                                                         f"be brief and conversational."}]
 
         if use_knowledge and self.knowledge_base:
             chunks = [d["chunk"] for d in self.knowledge_base]
@@ -22,7 +28,7 @@ class Bot:
             top_k_indices = vector_retreival(query=subject, top_k=top_k, vector_index=embeddings)
             top_k_chunks = [chunks[i] for i in top_k_indices]
 
-            reranked_indices = rerank(self.client, chunks=top_k_chunks, top_k=top_k,query=subject)
+            reranked_indices = rerank(self.client, chunks=top_k_chunks, top_k=top_k, query=subject)
             reranked_chunks = "\n\n".join([top_k_chunks[i] for i in reranked_indices])
 
             rag_prompt = (
@@ -31,8 +37,10 @@ class Bot:
             )
             system_messages.append({"role": "system", "content": rag_prompt})
 
-        user_prompt = f"Topic: {subject}. Continue the conversation naturally, be brief and conversational."
-        messages = system_messages + self.history + [{"role": "user", "content": user_prompt}]
+        if user_prompt:
+            self.history.append({"role": "user", "content": user_prompt})
+
+        messages = system_messages + self.history
 
         response = self.client.chat.completions.create(
             model=self.model,
