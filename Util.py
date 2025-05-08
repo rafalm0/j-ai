@@ -8,18 +8,19 @@ import json
 import os
 
 
-def vector_retreival(query: str, top_k: int = 5, vector_index: np.ndarray = None) -> List[int]:
+def vector_retreival(client, query: str, top_k: int = 5, vector_index: np.ndarray = None) -> List[int]:
     """
     Retrieve the top-k most similar items from an index based on a query.
     Args:
+        client : client api object
         query (str): The query string to search for.
         top_k (int, optional): The number of top similar items to retrieve. Defaults to 5.
-        index (np.ndarray, optional): The index array containing embeddings to search against. Defaults to None.
+        vector_index (np.ndarray, optional): The index array containing embeddings to search against. Defaults to None.
     Returns:
         List[int]: A list of indices corresponding to the top-k most similar items in the index.
     """
 
-    query_embedding = np.array(generate_embeddings([query], 'BAAI/bge-large-en-v1.5')[0])
+    query_embedding = np.array(generate_embeddings(client, [query], 'BAAI/bge-large-en-v1.5')[0])
 
     similarity_scores = np.dot(query_embedding, vector_index.T)
 
@@ -45,6 +46,7 @@ def generate_embeddings(client, input_texts: List[str], model_api_string: str) -
     """Generate embeddings from Together python library.
 
     Args:
+        client : client api object
         input_texts: a list of string input texts.
         model_api_string: str. An API string for a specific embedding model of your choice.
 

@@ -25,7 +25,7 @@ class Bot:
             chunks = [d["chunk"] for d in self.knowledge_base]
             embeddings = np.array([d["embedding"] for d in self.knowledge_base])
 
-            top_k_indices = vector_retreival(query=subject, top_k=top_k, vector_index=embeddings)
+            top_k_indices = vector_retreival(client=self.client, query=subject, top_k=top_k, vector_index=embeddings)
             top_k_chunks = [chunks[i] for i in top_k_indices]
 
             reranked_indices = rerank(self.client, chunks=top_k_chunks, top_k=top_k, query=subject)
