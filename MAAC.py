@@ -6,11 +6,11 @@ from together import Together
 from AiA import Bot
 import os
 import sys
+
 if os.path.exists("keys.py"):
     from keys import api_key
 else:
     api_key = os.environ['API_KEY']
-
 
 # Initialize
 app = FastAPI()
@@ -85,8 +85,10 @@ async def multi_agent_chat(input_data: ChatInput):
             "topic": input_data.topic,
             "history": []
         }
-
     session = sessions[session_id]
+    if input_data.topic:
+        session['topic'] = input_data.topic
+
     topic = session["topic"]
     turn = session["turn"]
 
