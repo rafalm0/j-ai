@@ -32,7 +32,7 @@ app.add_middleware(
 
 # Together API client
 client = Together(api_key=api_key)
-model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
 # Define your bots
 bot_1999 = Bot(
