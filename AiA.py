@@ -16,7 +16,8 @@ class Bot:
         self.history = []
         return
 
-    def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5):
+    def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5,
+                          cite=False):
         system_messages = [{"role": "system", "content": self.persona_prompt},
                            {"role": "system", "content": f"Topic: {subject}. Continue the conversation naturally."
                                                          f"Be conversational, as if you were chatting with a friend "
@@ -32,12 +33,25 @@ class Bot:
             top_k_chunks = [chunks[i] for i in top_k_indices]
 
             reranked_indices = rerank(self.client, chunks=top_k_chunks, top_k=top_k, query=subject)
-            reranked_chunks = "\n\n".join([top_k_chunks[i] for i in reranked_indices])
 
-            rag_prompt = (
-                    "Use the following context extracted from NYT interviews to inform your next response. "
-                    "Reference it only if it's relevant to the topic:\n\n" + reranked_chunks.strip()
-            )
+            if cite:
+                reranked_articles = [self.knowledge_base[i] for i in reranked_indices]
+                stringed_articles = [f"{article['title']}\nBy:{article['author']}\n{article['chunk']}\n" for article in
+                                     reranked_articles]
+
+                reranked_chunks = "\n\n".join(stringed_articles)
+                rag_prompt = (
+                        "Use the following context extracted from NYT interviews to inform your next response. "
+                        "Reference it only if it's relevant to the topic and always cite the tittle and author:\n\n"
+                        + reranked_chunks.strip()
+                )
+            else:
+                reranked_chunks = "\n\n".join([top_k_chunks[i] for i in reranked_indices])
+
+                rag_prompt = (
+                        "Use the following context extracted from NYT interviews to inform your next response. "
+                        "Reference it only if it's relevant to the topic:\n\n" + reranked_chunks.strip()
+                )
             system_messages.append({"role": "system", "content": rag_prompt})
 
         if user_prompt:
