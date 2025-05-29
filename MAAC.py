@@ -70,6 +70,7 @@ class ChatInput(BaseModel):
     session_id: str | None = None
     topic: str
     continue_conversation: bool = False  # If False, we start a new conversation
+    cite: bool = False
 
 
 @app.post("/multi-agent-chat")
@@ -91,6 +92,7 @@ async def multi_agent_chat(input_data: ChatInput):
 
     topic = session["topic"]
     turn = session["turn"]
+    cite = session['cite']
 
     # Decide which bot speaks next
     current_bot = bot_1999 if turn % 2 == 0 else bot_2024
@@ -101,7 +103,7 @@ async def multi_agent_chat(input_data: ChatInput):
         current_bot.history.append({"role": "user", "content": last_message})
 
     # Generate bot response
-    response = current_bot.generate_response(topic)
+    response = current_bot.generate_response(topic,cite=cite)
     session["history"].append({
         "bot": current_bot.name,
         "message": response
