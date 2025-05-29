@@ -92,7 +92,7 @@ async def multi_agent_chat(input_data: ChatInput):
 
     topic = session["topic"]
     turn = session["turn"]
-    cite = session['cite']
+    cite = input_data.cite
 
     # Decide which bot speaks next
     current_bot = bot_1999 if turn % 2 == 0 else bot_2024
