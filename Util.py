@@ -66,7 +66,7 @@ def load_and_embed_jsonl(paths: list[str], embedding_model="BAAI/bge-large-en-v1
         with open(path, "r", encoding="utf-8") as f:
             for line in tqdm(f.readlines()):
                 json_line = json.loads(line)
-                embedding = generate_embeddings([json_line["chunk"]], embedding_model)[0]
+                embedding = generate_embeddings(client,[json_line["chunk"]], embedding_model)[0]
                 json_line["embedding"] = embedding.tolist()
                 enriched.append(json_line)
 
@@ -91,7 +91,7 @@ def load_embeddings(path):
 # EXAMPLE USAGE
 
 if __name__ == "__main__":
-    year = '1999'
+    year = '2024'
 
     client = Together(api_key=api_key)
 
