@@ -1,11 +1,19 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
-from together import Together
-from AiA import Bot
 import os
 import sys
+from datetime import datetime
+from typing import Annotated, Generator
+
+# Import your database and model components
+from sqlalchemy.orm import Session
+from db import initialize_db,get_db,Conversation, Message, Citation, Reaction
+
+# Import your actual Bot class and Together client
+from together import Together
+from AiA import Bot  # Assuming your AiA.py is renamed to AIA.py
 
 if os.path.exists("keys.py"):
     from keys import api_key
@@ -71,6 +79,19 @@ class ChatInput(BaseModel):
     topic: str
     continue_conversation: bool = False  # If False, we start a new conversation
     cite: bool = False
+
+
+
+# Event handler to initialize the database on startup
+@app.on_event("startup")
+async def startup_event():
+    """
+    This function is executed when the FastAPI application starts.
+    It ensures that all database tables are created.
+    """
+    print("FastAPI app starting up. Initializing database...")
+    initialize_db()  # Call initialize_db from database.py
+    print("Database initialization complete.")
 
 
 @app.post("/multi-agent-chat")
