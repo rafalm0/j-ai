@@ -2,3 +2,5 @@
 keys.py
 
 __pycache__/
+
+env_config.py

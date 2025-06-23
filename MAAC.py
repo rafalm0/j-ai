@@ -103,7 +103,7 @@ async def multi_agent_chat(input_data: ChatInput):
         current_bot.history.append({"role": "user", "content": last_message})
 
     # Generate bot response
-    response = current_bot.generate_response(topic,cite=cite)
+    response = current_bot.generate_response(topic, cite=cite)
     session["history"].append({
         "bot": current_bot.name,
         "message": response
