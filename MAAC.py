@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Select, Join
 from db import initialize_db, get_db, Conversation, Message, Citation, Reaction
 
-from default_values_prompts import bot_2_system, bot_2_persona, bot_2_name, bot_1_system, bot_1_persona, bot_1_name
+from default_values_prompts import bot_2_system, bot_2_persona, bot_2_name, bot_1_system, bot_1_persona, bot_1_name,bot_1_color,bot_2_color
 from together import Together
 from AiA import Bot
 
@@ -64,11 +64,14 @@ async def startup_event():
 def get_or_create_conversation(
         session: Session = get_db(),
         conv_id: str = '',
+        conv_name : str = 'bot_chat',
         bot_1_name: str = bot_1_name,
         bot_1_persona: str = bot_1_persona,
         bot_1_system: str = bot_1_system,
+        bot_1_color: str = bot_1_color,
+        bot_2_color: str = bot_2_color,
         bot_2_name: str = bot_2_name,
-        bot_2_persona: str = bot_1_persona,
+        bot_2_persona: str = bot_2_persona,
         bot_2_system: str = bot_2_system
 ):
     """
@@ -93,6 +96,9 @@ def get_or_create_conversation(
     Raises:
         ValueError: If a new conversation needs to be created but required bot details
                     (name, persona, system) are missing for either bot.
+                    :param conv_name:
+                    :param bot_2_color:
+                    :param bot_1_color:
                     :param conv_id:
                     :param session:
                     :param bot_2_system:
@@ -114,9 +120,12 @@ def get_or_create_conversation(
     print(f"Conversation not found. Creating a new one...")
 
     new_conversation = Conversation(
+        conversation_name=conv_name,
         bot_1_name=bot_1_name,
         bot_1_persona=bot_1_persona,
         bot_1_system=bot_1_system,
+        bot_1_color=bot_1_color,
+        bot_2_color=bot_2_color,
         bot_2_name=bot_2_name,
         bot_2_persona=bot_2_persona,
         bot_2_system=bot_2_system
@@ -187,8 +196,10 @@ async def multi_agent_chat(input_data: ChatInput):
     conversation_id = input_data.session_id
 
     conversation = get_or_create_conversation(conv_id=conversation_id)
-
-    aux = recover_messages_from_conversation(conversation, get_next_bot=True)
+    if conversation.id == conversation_id:
+        aux = recover_messages_from_conversation(conversation, get_next_bot=True)
+    else:
+        aux = {"messages":[],"bot":conversation.bot_1_name}
     messages = aux['messages']
     next_bot = aux['bot']
     topic = input_data.topic
