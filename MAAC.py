@@ -216,7 +216,7 @@ async def multi_agent_chat(input_data: ChatInput):
     topic = input_data.topic
     cite = input_data.cite
     response = next_bot.generate_response(subject=topic, cite=cite)
-    add_response(get_db(), int(conversation_id), message_content=response, writer=next_bot.name, topic=topic)
+    add_response(get_db(), int(conversation.id), message_content=response, writer=next_bot.name, topic=topic)
 
     history = [
         {"name": msg.writer, "content": msg.message}
@@ -224,7 +224,7 @@ async def multi_agent_chat(input_data: ChatInput):
     ]
     # history -> list like this: [{"name": "bot_1", "content": "hello"},{"name": "bot_2", "content": "hello_there"}]
     return {
-        "session_id": conversation_id,
+        "session_id": conversation.id,
         "bot_name": next_bot.name,
         "response": response,
         "full_conversation": history,
