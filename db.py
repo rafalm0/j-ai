@@ -23,12 +23,14 @@ Base = declarative_base()
 class Conversation(Base):
     __tablename__ = 'conversation'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, unique=True)
     conversation_name = Column(String)
     bot_1_name = Column(String)
     bot_1_persona = Column(String)
     bot_1_system = Column(String)
     bot_2_name = Column(String)
+    bot_1_color = Column(String)
+    bot_2_color = Column(String)
     bot_2_persona = Column(String)
     bot_2_system = Column(String)
     created_at = Column(DateTime, default=datetime.now)
@@ -42,7 +44,7 @@ class Conversation(Base):
 class Message(Base):
     __tablename__ = 'message'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, unique=True)
     conversation_id = Column(Integer, ForeignKey('conversation.id'))
     message = Column(String)
     upvotes = Column(Integer, default=0)
@@ -61,7 +63,7 @@ class Message(Base):
 class Citation(Base):
     __tablename__ = 'citation'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, unique=True)
     message_id = Column(Integer, ForeignKey('message.id'))
     chunk = Column(String)
 
@@ -74,7 +76,7 @@ class Citation(Base):
 class Reaction(Base):
     __tablename__ = 'reactions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, unique=True)
     message_id = Column(Integer, ForeignKey('message.id'))
     reaction_name = Column(String)
     quantity = Column(Integer, default=0)
@@ -85,16 +87,14 @@ class Reaction(Base):
     def __repr__(self):
         return f"<Reaction(id={self.id}, reaction_name='{self.reaction_name}', quantity={self.quantity})>"
 
+
 def get_db():
     """
     Dependency function to get a database session.
     It yields a session and ensures it's closed after the request.
     """
     db = Session()
-    try:
-        yield db
-    finally:
-        db.close()
+    return db
 
 
 def initialize_db():

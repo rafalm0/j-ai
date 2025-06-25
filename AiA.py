@@ -18,13 +18,11 @@ class Bot:
 
     def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5,
                           cite=False):
-        system_messages = [{"role": "system", "content": self.persona_prompt},
-                           {"role": "system", "content": f"Topic: {subject}. Continue the conversation naturally."
-                                                         f"Be conversational, as if you were chatting with a friend "
-                                                         f"Use logical connections and comparisons when changing topic."
-                                                         f"Use less than 150 words."
-                                                         f"Be conversational and ask the user their opinion."}]
-
+        system_prompt = (f"Continue the conversation naturally.Be conversational, as if you were chatting with a "
+                         f"friend Use logical connections and comparisons when changing topic.Use less than 150 "
+                         f"words.Be conversational and ask the user their opinion.")
+        system_messages = [{"role": "system", "content": self.persona_prompt}]
+        system_messages.append({"role": "system", "content": f"Topic: {subject}" + system_prompt})
         if use_knowledge and self.knowledge_base:
             chunks = [d["chunk"] for d in self.knowledge_base]
             embeddings = np.array([d["embedding"] for d in self.knowledge_base])

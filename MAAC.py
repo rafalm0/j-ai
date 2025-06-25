@@ -7,13 +7,13 @@ import sys
 from datetime import datetime
 from typing import Annotated, Generator
 
-# Import your database and model components
 from sqlalchemy.orm import Session
-from db import initialize_db,get_db,Conversation, Message, Citation, Reaction
+from sqlalchemy import Select, Join
+from db import initialize_db, get_db, Conversation, Message, Citation, Reaction
 
-# Import your actual Bot class and Together client
+from default_values_prompts import bot_2_system, bot_2_persona, bot_2_name, bot_1_system, bot_1_persona, bot_1_name
 from together import Together
-from AiA import Bot  # Assuming your AiA.py is renamed to AIA.py
+from AiA import Bot
 
 if os.path.exists("keys.py"):
     from keys import api_key
@@ -42,44 +42,11 @@ app.add_middleware(
 client = Together(api_key=api_key)
 model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
-# Define your bots
-bot_1999 = Bot(
-    name="1999 Bot",
-    persona_prompt="You are an informative journalist who understands the views of journalists from 1999 regarding "
-                   "the internet. Try to maintain a concise, conversational tone. Make connections to key events from "
-                   "that time, such as the Y2K bug, the dot-com bubble, and the public reaction to the early "
-                   "internet. When appropriate, reflect on which concerns or expectations turned out to be true or "
-                   "false, based on your 1999 perspective.",
-    model=model_name,
-    client=client,
-    chat_color="#D0F0FD",
-    knowledge_base='RAG-embeddings/nyt_1999_embedded.jsonl'
-)
-
-bot_2024 = Bot(
-    name="2024 Bot",
-    persona_prompt="You are an informative journalist who understands the views of journalists in 2024 regarding both "
-                   "the early arrival of the internet and the current rise of generative AI. Maintain a "
-                   "conversational and concise tone. Make relevant parallels between the internet’s emergence and "
-                   "today’s AI developments, especially when discussing concerns, optimism, or societal shifts. Share "
-                   "insights that help contrast how things are unfolding with AI today versus how they unfolded with "
-                   "the internet.",
-    model=model_name,
-    client=client,
-    chat_color="#C1F0C1",
-    knowledge_base='RAG-embeddings/nyt_2024_embedded.jsonl'
-)
-
-# Store conversations per session
-sessions = {}
-
 
 class ChatInput(BaseModel):
-    session_id: str | None = None
+    session_id: str | None = None  # if None we are stating a new convo
     topic: str
-    continue_conversation: bool = False  # If False, we start a new conversation
     cite: bool = False
-
 
 
 # Event handler to initialize the database on startup
@@ -94,49 +61,117 @@ async def startup_event():
     print("Database initialization complete.")
 
 
+def get_or_create_conversation(
+        session: Session = get_db(),
+        conv_id: str = '',
+        bot_1_name: str = bot_1_name,
+        bot_1_persona: str = bot_1_persona,
+        bot_1_system: str = bot_1_system,
+        bot_2_name: str = bot_2_name,
+        bot_2_persona: str = bot_1_persona,
+        bot_2_system: str = bot_2_system
+):
+    """
+    Checks if a conversation with the given id exists. If it does, returns it.
+    If not, it creates a new conversation with the provided details and returns its ID.
+
+    Args:
+        session: The SQLAlchemy session to use for database operations.
+        conversation_name: The name of the conversation to find or create.
+        bot_1_name, bot_1_persona, bot_1_system: Details for bot 1.
+                                                  These are optional for finding an existing
+                                                  conversation, but REQUIRED if a new
+                                                  conversation needs to be created.
+        bot_2_name, bot_2_persona, bot_2_system: Details for bot 2.
+                                                  These are optional for finding an existing
+                                                  conversation, but REQUIRED if a new
+                                                  conversation needs to be created.
+
+    Returns:
+        The integer ID of the found or newly created conversation.
+
+    Raises:
+        ValueError: If a new conversation needs to be created but required bot details
+                    (name, persona, system) are missing for either bot.
+                    :param conv_id:
+                    :param session:
+                    :param bot_2_system:
+                    :param bot_2_persona:
+                    :param bot_2_name:
+                    :param bot_1_system:
+                    :param bot_1_persona:
+                    :param bot_1_name:
+    """
+
+    if conv_id is not None:
+        existing_conversation = session.execute(
+            Select(Conversation).where(Conversation.id == conv_id)
+        ).scalars().first()
+        if existing_conversation:
+            print(f"Found existing conversation: '{conv_id}'")
+            return existing_conversation
+
+    print(f"Conversation not found. Creating a new one...")
+
+    new_conversation = Conversation(
+        bot_1_name=bot_1_name,
+        bot_1_persona=bot_1_persona,
+        bot_1_system=bot_1_system,
+        bot_2_name=bot_2_name,
+        bot_2_persona=bot_2_persona,
+        bot_2_system=bot_2_system
+    )
+    session.add(new_conversation)
+    session.commit()
+    session.refresh(new_conversation)
+
+    print(f"Created new conversation: '{new_conversation.conversation_name}' (ID: {new_conversation.id})")
+    return new_conversation
+
+
+def recover_messages_from_conversation(conversation: Conversation, get_next_bot=False):
+    conn = get_db()
+    info = Select(Message).where(Message.conversation_id == conversation.id)
+    messages = conn.execute(info).scalars().all()
+    messages = sorted(messages, key=lambda msg: msg.created_at, reverse=True)
+
+    last_writer_name = messages[0].writer
+
+    if get_next_bot:
+        if last_writer_name == conversation.bot_1_name:
+            next_bot = Bot(client=client, name=bot_2_name, persona_prompt=conversation.bot_2_persona,
+                           chat_color=conversation.bot_2_color, model=model_name)
+        else:
+            next_bot = Bot(client=client, name=bot_1_name, persona_prompt=conversation.bot_1_persona,
+                           chat_color=conversation.bot_1_color, model=model_name)
+        return {"messages": messages, "bot": next_bot}
+    return {"messages": messages}
+
+def add_response(message):
+
+    return True
+
+
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
-    session_id = input_data.session_id or str(uuid.uuid4())
+    conversation_id = input_data.session_id
 
-    # If new conversation, reset histories
-    if not input_data.continue_conversation or session_id not in sessions:
-        bot_1999.history = []
-        bot_2024.history = []
-        sessions[session_id] = {
-            "turn": 0,
-            "topic": input_data.topic,
-            "history": []
-        }
-    session = sessions[session_id]
-    if input_data.topic:
-        session['topic'] = input_data.topic
+    conversation = get_or_create_conversation(conv_id=conversation_id)
 
-    topic = session["topic"]
-    turn = session["turn"]
+    aux = recover_messages_from_conversation(conversation, get_next_bot=True)
+    messages = aux['messages']
+    next_bot = aux['bot']
+    topic = input_data.topic
     cite = input_data.cite
+    response = next_bot.generate_response(subject=topic, cite=cite)
+    add_response(response)
 
-    # Decide which bot speaks next
-    current_bot = bot_1999 if turn % 2 == 0 else bot_2024
 
-    # If it's not the first turn, pass the last message as input
-    if session["history"]:
-        last_message = session["history"][-1]["message"]
-        current_bot.history.append({"role": "user", "content": last_message})
-
-    # Generate bot response
-    response = current_bot.generate_response(topic, cite=cite)
-    session["history"].append({
-        "bot": current_bot.name,
-        "message": response
-    })
-
-    # Increment turn
-    session["turn"] += 1
-
+    # history -> list like this: [{"name": "bot_1", "content": "hello"},{"name": "bot_2", "content": "hello_there"}]
     return {
-        "session_id": session_id,
-        "bot_name": current_bot.name,
+        "session_id": conversation_id,
+        "bot_name": next_bot.name,
         "response": response,
-        "full_conversation": session["history"],
-        "chat_color": current_bot.chat_color
+        "full_conversation": history,
+        "chat_color": next_bot.chat_color
     }
