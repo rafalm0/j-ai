@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Select, Join
 from db import initialize_db, get_db, Conversation, Message, Citation, Reaction
 
-from default_values_prompts import bot_2_system, bot_2_persona, bot_2_name, bot_1_system, bot_1_persona, bot_1_name,bot_1_color,bot_2_color
+from default_values_prompts import bot_2_system, bot_2_persona, bot_2_name, bot_1_system, bot_1_persona, bot_1_name, \
+    bot_1_color, bot_2_color
 from together import Together
 from AiA import Bot
 
@@ -64,7 +65,7 @@ async def startup_event():
 def get_or_create_conversation(
         session: Session = get_db(),
         conv_id: str = '',
-        conv_name : str = 'bot_chat',
+        conv_name: str = 'bot_chat',
         bot_1_name: str = bot_1_name,
         bot_1_persona: str = bot_1_persona,
         bot_1_system: str = bot_1_system,
@@ -191,6 +192,16 @@ def add_response(
     return new_message
 
 
+def build_bot_from_conversation(conversation: Conversation, bot_name=None):
+    if (bot_name == conversation.bot_1_name) or (bot_name is None):
+        bot = Bot(client=client, name=conversation.bot_1_name, persona_prompt=conversation.bot_1_persona,
+                  chat_color=conversation.bot_1_color, model=model_name)
+    else:
+        bot = Bot(client=client, name=conversation.bot_2_name, persona_prompt=conversation.bot_2_persona,
+                  chat_color=conversation.bot_2_color, model=model_name)
+    return bot
+
+
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
     conversation_id = input_data.session_id
@@ -199,7 +210,7 @@ async def multi_agent_chat(input_data: ChatInput):
     if conversation.id == conversation_id:
         aux = recover_messages_from_conversation(conversation, get_next_bot=True)
     else:
-        aux = {"messages":[],"bot":conversation.bot_1_name}
+        aux = {"messages": [], "bot": build_bot_from_conversation(conversation, conversation.bot_1_name)}
     messages = aux['messages']
     next_bot = aux['bot']
     topic = input_data.topic
