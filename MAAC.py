@@ -147,9 +147,39 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
         return {"messages": messages, "bot": next_bot}
     return {"messages": messages}
 
-def add_response(message):
 
-    return True
+def add_response(
+        session: Session,
+        conversation_id: int,
+        message_content: str,
+        writer: str,
+        topic: str
+) -> Message:
+    """
+    Adds a new message (response) to the database for a given conversation.
+
+    Args:
+        session: The SQLAlchemy session to use.
+        conversation_id: The ID of the conversation this message belongs to.
+        message_content: The actual text content of the message.
+        writer: The name of the bot (or user) who wrote the message.
+        topic: The topic associated with this message.
+
+    Returns:
+        The newly created Message ORM object after it's committed to the DB.
+    """
+    new_message = Message(
+        conversation_id=conversation_id,
+        message=message_content,
+        writer=writer,
+        topic=topic,
+        created_at=datetime.now()  # Use current time for the new message
+    )
+    session.add(new_message)
+    session.commit()
+    session.refresh(new_message)  # Get the ID and any default values assigned by DB
+    print(f"Added new message to conversation {conversation_id} by {writer}: {message_content[:50]}...")
+    return new_message
 
 
 @app.post("/multi-agent-chat")
@@ -164,9 +194,12 @@ async def multi_agent_chat(input_data: ChatInput):
     topic = input_data.topic
     cite = input_data.cite
     response = next_bot.generate_response(subject=topic, cite=cite)
-    add_response(response)
+    add_response(get_db(), int(conversation_id), message_content=response, writer=next_bot.name, topic=topic)
 
-
+    history = [
+        {"name": msg.writer, "content": msg.message}
+        for msg in messages
+    ]
     # history -> list like this: [{"name": "bot_1", "content": "hello"},{"name": "bot_2", "content": "hello_there"}]
     return {
         "session_id": conversation_id,
