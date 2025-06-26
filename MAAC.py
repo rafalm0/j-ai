@@ -146,14 +146,17 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
     messages = sorted(messages, key=lambda msg: msg.created_at, reverse=True)
 
     last_writer_name = messages[0].writer
+    print(f"Last writer detected: {last_writer_name}, finding")
 
     if get_next_bot:
         if last_writer_name == conversation.bot_1_name:
-            next_bot = Bot(client=client, name=bot_2_name, persona_prompt=conversation.bot_2_persona,
-                           chat_color=conversation.bot_2_color, model=model_name)
+            next_bot = build_bot_from_conversation(conversation,conversation.bot_2_name)
+        elif last_writer_name == conversation.bot_2_name:
+            next_bot = build_bot_from_conversation(conversation,conversation.bot_1_name)
         else:
-            next_bot = Bot(client=client, name=bot_1_name, persona_prompt=conversation.bot_1_persona,
-                           chat_color=conversation.bot_1_color, model=model_name)
+            print(f"[WARNING] Bot name not found, falling back to bot 1")
+            next_bot = build_bot_from_conversation(conversation, conversation.bot_1_name)
+
         return {"messages": messages, "bot": next_bot}
     return {"messages": messages}
 
@@ -207,6 +210,7 @@ def build_bot_from_conversation(conversation: Conversation, bot_name=None):
     else:
         bot = Bot(client=client, name=conversation.bot_2_name, persona_prompt=conversation.bot_2_persona,
                   chat_color=conversation.bot_2_color, model=model_name)
+    print(f"New bot constructed to reply: {bot.name}")
     return bot
 
 
@@ -216,8 +220,10 @@ async def multi_agent_chat(input_data: ChatInput):
 
     conversation = get_or_create_conversation(conv_id=conversation_id)
     if conversation.id == conversation_id:
+        print("Convertation matched, recovering previous messages...")
         aux = recover_messages_from_conversation(conversation, get_next_bot=True)
     else:
+        print(f"Convertation {conversation.id} not matched with {conversation_id}, falling back to new conversation... ")
         aux = {"messages": [], "bot": build_bot_from_conversation(conversation, conversation.bot_1_name)}
     messages = aux['messages']
     next_bot = aux['bot']

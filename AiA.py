@@ -1,4 +1,5 @@
 from Util import load_embeddings, rerank, vector_retreival
+from default_values_prompts import bot_1_name,bot_2_name,bot_1_knowledge_base,bot_2_knowledge_base
 import numpy as np
 
 
@@ -10,6 +11,10 @@ class Bot:
         self.client = client
         self.history = []
         self.chat_color = chat_color
+        if name == bot_1_name:
+            knowledge_base = bot_1_knowledge_base
+        elif name == bot_2_name:
+            knowledge_base = bot_2_knowledge_base
         self.knowledge_base = load_embeddings(knowledge_base) if knowledge_base else None
 
     def clean_history(self):
