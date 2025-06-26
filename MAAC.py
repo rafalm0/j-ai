@@ -159,7 +159,6 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
 
 
 def add_response(
-        session: Session = get_db(),
         conversation_id: int,
         message_content: str,
         writer: str,
@@ -188,7 +187,7 @@ def add_response(
         topic=topic,
         created_at=datetime.now()  # Use current time for the new message
     )
-
+    session = get_db()
     session.add(new_message)
     session.commit()
     session.refresh(new_message)  # Get the ID and any default values assigned by DB
@@ -227,7 +226,7 @@ async def multi_agent_chat(input_data: ChatInput):
     response = next_bot.generate_response(subject=topic, cite=cite)
     reply_response = response['reply']
     chunks = response['chunks']
-    add_response(get_db(), int(conversation.id), message_content=reply_response, writer=next_bot.name, topic=topic,
+    add_response(int(conversation.id), message_content=reply_response, writer=next_bot.name, topic=topic,
                  citation=chunks)
 
     history = [
