@@ -163,7 +163,8 @@ def add_response(
         conversation_id: int,
         message_content: str,
         writer: str,
-        topic: str
+        topic: str,
+        citation: str
 ) -> Message:
     """
     Adds a new message (response) to the database for a given conversation.
@@ -174,9 +175,11 @@ def add_response(
         message_content: The actual text content of the message.
         writer: The name of the bot (or user) who wrote the message.
         topic: The topic associated with this message.
+        citation: the chunk that was cited
 
     Returns:
         The newly created Message ORM object after it's committed to the DB.
+
     """
     new_message = Message(
         conversation_id=conversation_id,
@@ -185,10 +188,15 @@ def add_response(
         topic=topic,
         created_at=datetime.now()  # Use current time for the new message
     )
+
     session.add(new_message)
     session.commit()
     session.refresh(new_message)  # Get the ID and any default values assigned by DB
     print(f"Added new message to conversation {conversation_id} by {writer}: {message_content[:50]}...")
+    citation = Citation(message_id=new_message.id, chunk=citation)
+    session.add(citation)
+    session.commit()
+    print(f"Added new citation to conversation {conversation_id}: {citation[:50]}...")
     return new_message
 
 
@@ -216,7 +224,10 @@ async def multi_agent_chat(input_data: ChatInput):
     topic = input_data.topic
     cite = input_data.cite
     response = next_bot.generate_response(subject=topic, cite=cite)
-    add_response(get_db(), int(conversation.id), message_content=response, writer=next_bot.name, topic=topic)
+    reply_response = response['reply']
+    chunks = response['chunks']
+    add_response(get_db(), int(conversation.id), message_content=reply_response, writer=next_bot.name, topic=topic,
+                 citation=chunks)
 
     history = [
         {"name": msg.writer, "content": msg.message}
@@ -226,7 +237,7 @@ async def multi_agent_chat(input_data: ChatInput):
     return {
         "session_id": conversation.id,
         "bot_name": next_bot.name,
-        "response": response,
+        "response": reply_response,
         "full_conversation": history,
         "chat_color": next_bot.chat_color
     }

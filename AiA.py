@@ -23,6 +23,7 @@ class Bot:
                          f"words.Be conversational and ask the user their opinion.")
         system_messages = [{"role": "system", "content": self.persona_prompt}]
         system_messages.append({"role": "system", "content": f"Topic: {subject}" + system_prompt})
+        reranked_chunks = ''
         if use_knowledge and self.knowledge_base:
             chunks = [d["chunk"] for d in self.knowledge_base]
             embeddings = np.array([d["embedding"] for d in self.knowledge_base])
@@ -63,4 +64,5 @@ class Bot:
         )
         reply = response.choices[0].message.content
         self.history.append({"role": "assistant", "content": reply})
-        return reply
+
+        return {"reply": reply, "chunks": reranked_chunks.strip()}
