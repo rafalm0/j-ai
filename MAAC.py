@@ -159,7 +159,7 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
 
 
 def add_response(
-        session: Session,
+        session: Session = get_db(),
         conversation_id: int,
         message_content: str,
         writer: str,
@@ -194,6 +194,7 @@ def add_response(
     session.refresh(new_message)  # Get the ID and any default values assigned by DB
     print(f"Added new message to conversation {conversation_id} by {writer}: {message_content[:50]}...")
     citation = Citation(message_id=new_message.id, chunk=citation)
+    session = get_db()
     session.add(citation)
     session.commit()
     print(f"Added new citation to conversation {conversation_id}: {citation.chunk[:50]}...")
