@@ -196,7 +196,7 @@ def add_response(
     citation = Citation(message_id=new_message.id, chunk=citation)
     session.add(citation)
     session.commit()
-    print(f"Added new citation to conversation {conversation_id}: {citation[:50]}...")
+    print(f"Added new citation to conversation {conversation_id}: {citation.chunk[:50]}...")
     return new_message
 
 
