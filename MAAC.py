@@ -206,7 +206,7 @@ def add_response(
 
 
 def build_bot_from_conversation(conversation: Conversation, bot_name=None):
-    if (bot_name == conversation.bot_2_name) or (bot_name is None):
+    if (bot_name == conversation.bot_1_name) or (bot_name is None):
         bot = Bot(client=client, name=conversation.bot_1_name, persona_prompt=conversation.bot_1_persona,
                   chat_color=conversation.bot_1_color, model=model_name)
     else:
