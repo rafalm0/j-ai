@@ -216,7 +216,10 @@ def build_bot_from_conversation(conversation: Conversation, bot_name=None):
 
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
-    conversation_id = int(input_data.session_id)
+    conversation_id = input_data.session_id
+    if conversation_id is not None:
+        conversation_id = int(conversation_id)
+        
 
     conversation = get_or_create_conversation(conv_id=conversation_id)
     if conversation.id == conversation_id:
