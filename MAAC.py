@@ -64,7 +64,7 @@ async def startup_event():
 
 def get_or_create_conversation(
         session: Session = get_db(),
-        conv_id: str = '',
+        conv_id: int = None,
         conv_name: str = 'bot_chat',
         bot_1_name: str = bot_1_name,
         bot_1_persona: str = bot_1_persona,
@@ -216,7 +216,7 @@ def build_bot_from_conversation(conversation: Conversation, bot_name=None):
 
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
-    conversation_id = input_data.session_id
+    conversation_id = int(input_data.session_id)
 
     conversation = get_or_create_conversation(conv_id=conversation_id)
     if conversation.id == conversation_id:
