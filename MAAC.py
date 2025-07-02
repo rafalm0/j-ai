@@ -44,12 +44,20 @@ client = Together(api_key=api_key)
 model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
 
+# --------------------------------------- Inputs -------------------------------------------------------------------
+
 class ChatInput(BaseModel):
     session_id: str | None = None  # if None we are stating a new convo
     topic: str
     cite: bool = False
 
 
+class ReactionInput(BaseModel):
+    message_id: str
+    emoji: str
+
+
+# --------------------------------------- Startup -------------------------------------------------------------------
 # Event handler to initialize the database on startup
 @app.on_event("startup")
 async def startup_event():
@@ -62,6 +70,7 @@ async def startup_event():
     print("Database initialization complete.")
 
 
+# --------------------------------------- Functions -------------------------------------------------------------------
 def get_or_create_conversation(
         session: Session = get_db(),
         conv_id: int = None,
@@ -97,17 +106,6 @@ def get_or_create_conversation(
     Raises:
         ValueError: If a new conversation needs to be created but required bot details
                     (name, persona, system) are missing for either bot.
-                    :param conv_name:
-                    :param bot_2_color:
-                    :param bot_1_color:
-                    :param conv_id:
-                    :param session:
-                    :param bot_2_system:
-                    :param bot_2_persona:
-                    :param bot_2_name:
-                    :param bot_1_system:
-                    :param bot_1_persona:
-                    :param bot_1_name:
     """
 
     if conv_id is not None:
@@ -216,6 +214,43 @@ def build_bot_from_conversation(conversation: Conversation, bot_name=None):
     return bot
 
 
+def react_emoji(message: Message.id, emoji):
+    emoji_exist = False
+    conn = get_db()
+    info = Select(Reaction).where(Reaction.message_id == message).where(Reaction.reaction_name == emoji)
+    reacts = conn.execute(info).scalars().all()
+
+    if len(reacts) == 1:
+        emoji_exist = True
+    elif len(reacts) != 0:
+        print(
+            f"[WARNING] More than one log of reaction {emoji} found in message with id {message}, skipping reaction...")
+
+    editted_reaction = None
+    if emoji_exist:
+        react = reacts[0]
+        session = get_db()
+        react.quantity += 1
+        session.commit()
+        print(f"Added +1 reaction to reaction {react.id}: {emoji}...")
+        editted_reaction = react
+    else:
+        new_reaction = Reaction(
+            message_id=message,
+            reaction_name=emoji,
+            quantity=1,
+            created_at=datetime.now()  # Use current time for the new reaction
+        )
+        session = get_db()
+        session.add(new_reaction)
+        session.commit()
+        session.refresh(new_reaction)
+        print(f"Added new reaction to message {message}: {emoji}...")
+        editted_reaction = new_reaction
+    return editted_reaction
+
+
+# --------------------------------------- Endpoints -------------------------------------------------------------------
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
     conversation_id = input_data.session_id
@@ -237,11 +272,11 @@ async def multi_agent_chat(input_data: ChatInput):
     response = next_bot.generate_response(subject=topic, cite=cite)
     reply_response = response['reply']
     chunks = response['chunks']
-    add_response(int(conversation.id), message_content=reply_response, writer=next_bot.name, topic=topic,
-                 citation=chunks)
+    new_message = add_response(int(conversation.id), message_content=reply_response, writer=next_bot.name, topic=topic,
+                               citation=chunks)
 
     history = [
-        {"name": msg.writer, "content": msg.message}
+        {"name": msg.writer, "content": msg.message, "message_id": msg.id}
         for msg in messages
     ]
     # history -> list like this: [{"name": "bot_1", "content": "hello"},{"name": "bot_2", "content": "hello_there"}]
@@ -249,6 +284,16 @@ async def multi_agent_chat(input_data: ChatInput):
         "session_id": conversation.id,
         "bot_name": next_bot.name,
         "response": reply_response,
+        "response_id": new_message.id,
         "full_conversation": history,
         "chat_color": next_bot.chat_color
     }
+
+
+@app.post("/react")
+async def reaction(input_data: ReactionInput):
+    message_id = input_data.message_id
+    emoji = input_data.emoji
+    react_emoji(message_id, emoji)
+
+    return {"message": "reaction logged :)"}
