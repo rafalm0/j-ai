@@ -229,9 +229,8 @@ def react_emoji(message: Message.id, emoji):
     editted_reaction = None
     if emoji_exist:
         react = reacts[0]
-        session = get_db()
         react.quantity += 1
-        session.commit()
+        conn.commit()
         print(f"Added +1 reaction to reaction {react.id}: {emoji}...")
         editted_reaction = react
     else:
