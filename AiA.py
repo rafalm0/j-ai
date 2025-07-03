@@ -1,4 +1,5 @@
 from Util import load_embeddings, rerank, vector_retreival
+from default_values_prompts import bot_1_name,bot_2_name,bot_1_knowledge_base,bot_2_knowledge_base
 import numpy as np
 
 
@@ -10,6 +11,10 @@ class Bot:
         self.client = client
         self.history = []
         self.chat_color = chat_color
+        if name == bot_1_name:
+            knowledge_base = bot_1_knowledge_base
+        elif name == bot_2_name:
+            knowledge_base = bot_2_knowledge_base
         self.knowledge_base = load_embeddings(knowledge_base) if knowledge_base else None
 
     def clean_history(self):
@@ -18,13 +23,12 @@ class Bot:
 
     def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5,
                           cite=False):
-        system_messages = [{"role": "system", "content": self.persona_prompt},
-                           {"role": "system", "content": f"Topic: {subject}. Continue the conversation naturally."
-                                                         f"Be conversational, as if you were chatting with a friend "
-                                                         f"Use logical connections and comparisons when changing topic."
-                                                         f"Use less than 150 words."
-                                                         f"Be conversational and ask the user their opinion."}]
-
+        system_prompt = (f"Continue the conversation naturally.Be conversational, as if you were chatting with a "
+                         f"friend Use logical connections and comparisons when changing topic.Use less than 150 "
+                         f"words.Be conversational and ask the user their opinion.")
+        system_messages = [{"role": "system", "content": self.persona_prompt}]
+        system_messages.append({"role": "system", "content": f"Topic: {subject}" + system_prompt})
+        reranked_chunks = ''
         if use_knowledge and self.knowledge_base:
             chunks = [d["chunk"] for d in self.knowledge_base]
             embeddings = np.array([d["embedding"] for d in self.knowledge_base])
@@ -65,4 +69,5 @@ class Bot:
         )
         reply = response.choices[0].message.content
         self.history.append({"role": "assistant", "content": reply})
-        return reply
+
+        return {"reply": reply, "chunks": reranked_chunks.strip()}
