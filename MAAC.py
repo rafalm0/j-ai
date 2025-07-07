@@ -296,3 +296,9 @@ async def reaction(input_data: ReactionInput):
     react_emoji(message_id, emoji)
 
     return {"message": "reaction logged :)"}
+
+@app.get("/conversations")
+async def conversations():
+
+    return {"message": "not implemented"}
+
