@@ -57,6 +57,10 @@ class ReactionInput(BaseModel):
     emoji: str
 
 
+class ConversationInput(BaseModel):
+    conv_id: int
+
+
 # --------------------------------------- Startup -------------------------------------------------------------------
 # Event handler to initialize the database on startup
 @app.on_event("startup")
@@ -166,6 +170,20 @@ def getall_conversations():
     info = Select(Conversation)
     conversations = conn.execute(info).scalars().all()
     return {"conversations": conversations}
+
+
+def get_conversation(conversation_id: int):
+    conn = get_db()
+    info = Select(Conversation)
+    conversations = conn.execute(info).scalars().all()
+    if len(conversations) == 0:
+        return {"Message": "[Error] Conversation not found"}
+    elif len(conversations) > 1:
+        print(f"[WARNING] More than one conversation matched on id {conversation_id}")
+        return {"Message": "[Error] Conversation not found"}
+    else:
+        conv = conversations[0]
+    return {"Message": "Retrival successful", "conversation": conv}
 
 
 def add_response(
@@ -307,9 +325,22 @@ async def reaction(input_data: ReactionInput):
 
 @app.get("/conversations")
 async def conversations():
-    convs = getall_conversations()
+    convs = getall_conversations()['conversations']
+    response = {"conversations": []}
+    for conv in convs:
+        c = {"id": conv.id, "name": conv.conversation_name, "bot1": conv.bot_1_name, "bot2": conv.bot_2_name,
+             "Topic": conv.messages[0].topic}
+        response['conversations'].append(c)
     return convs
 
 
+@app.get("/conversation")
+async def conversation(input_data: ConversationInput):
+    conv = get_conversation(conversation_id=input_data.conv_id)
+    if "conversation" in conv.keys():
+        print(conv['Message'])
+        conv = conv['conversation']
+        return recover_messages_from_conversation(conv)
+    else:
+        return conv['Message']
 
-print("hey yo")
