@@ -161,6 +161,13 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
     return {"messages": messages}
 
 
+def getall_conversations():
+    conn = get_db()
+    info = Select(Conversation)
+    conversations = conn.execute(info).scalars().all()
+    return {"conversations": conversations}
+
+
 def add_response(
         conversation_id: int,
         message_content: str,
@@ -297,8 +304,12 @@ async def reaction(input_data: ReactionInput):
 
     return {"message": "reaction logged :)"}
 
+
 @app.get("/conversations")
 async def conversations():
+    convs = getall_conversations()
+    return convs
 
-    return {"message": "not implemented"}
 
+
+print("hey yo")
