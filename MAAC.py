@@ -338,7 +338,7 @@ async def conversations():
             _topic = _messages[0].topic
         c = {"id": _id, "name": _name, "bot1": _bot1, "bot2": _bot2, "Topic": _topic}
         response['conversations'].append(c)
-    return convs
+    return response
 
 
 @app.get("/conversation")
