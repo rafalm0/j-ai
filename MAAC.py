@@ -328,8 +328,15 @@ async def conversations():
     convs = getall_conversations()['conversations']
     response = {"conversations": []}
     for conv in convs:
-        c = {"id": conv.id, "name": conv.conversation_name, "bot1": conv.bot_1_name, "bot2": conv.bot_2_name,
-             "Topic": conv.messages[0].topic}
+        _id = conv.id
+        _name = conv.conversation_name
+        _bot1 = conv.bot_1_name
+        _bot2 = conv.bot_2_name
+        _messages = conv.messages
+        _topic = ""
+        if _messages:
+            _topic = _messages[0].topic
+        c = {"id": _id, "name": _name, "bot1": _bot1, "bot2": _bot2, "Topic": _topic}
         response['conversations'].append(c)
     return convs
 
@@ -343,4 +350,4 @@ async def conversation(input_data: ConversationInput):
         return recover_messages_from_conversation(conv)
     else:
         return conv['Message']
-
+print("heyo")
