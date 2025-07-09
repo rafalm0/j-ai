@@ -58,7 +58,7 @@ class ReactionInput(BaseModel):
 
 
 class ConversationInput(BaseModel):
-    conv_id: int
+    conv_id: str
 
 
 # --------------------------------------- Startup -------------------------------------------------------------------
@@ -343,7 +343,7 @@ async def conversations():
 
 @app.get("/conversation")
 async def conversation(input_data: ConversationInput):
-    conv = get_conversation(conversation_id=input_data.conv_id)
+    conv = get_conversation(conversation_id=int(input_data.conv_id))
     if "conversation" in conv.keys():
         print(conv['Message'])
         conv = conv['conversation']
