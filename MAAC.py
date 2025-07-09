@@ -54,7 +54,7 @@ class ChatInput(BaseModel):
 
 class ReactionInput(BaseModel):
     message_id: str
-    emoji: str
+    emoji: str | None = None
 
 
 class ConversationInput(BaseModel):
@@ -274,6 +274,42 @@ def react_emoji(message: Message.id, emoji):
     return editted_reaction
 
 
+def remove_emoji_reaction(message_id: int, emoji: str):
+    """
+    Removes an emoji reaction from a specific message.
+    If the reaction exists, it is deleted from the database.
+    If it doesn't exist, nothing happens.
+    """
+    conn = get_db()
+    info = Select(Reaction).where(Reaction.message_id == message_id).where(Reaction.reaction_name == emoji)
+    reacts = conn.execute(info).scalars().all()
+
+    if len(reacts) == 1:
+        react = reacts[0]
+        conn.delete(react)
+        conn.commit()
+        print(f"Deleted reaction {emoji} from message {message_id}")
+        return {"status": "deleted", "reaction_id": react.id}
+    elif len(reacts) > 1:
+        print(f"[WARNING] Multiple reactions found for {emoji} on message {message_id}, skipping delete...")
+        return {"status": "error", "reason": "duplicate reactions"}
+    else:
+        print(f"No reaction {emoji} found on message {message_id}")
+        return {"status": "not_found"}
+
+def clear_emojis(message_id: int):
+    """
+    Removes all emojis reaction from a specific message.
+    """
+    conn = get_db()
+    info = Select(Reaction).where(Reaction.message_id == message_id)
+    reacts = conn.execute(info).scalars().all()
+    for react in reacts:
+        conn.delete(react)
+    conn.commit()
+
+    return {"status": "deleted"}
+
 # --------------------------------------- Endpoints -------------------------------------------------------------------
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
@@ -323,6 +359,22 @@ async def reaction(input_data: ReactionInput):
     return {"message": "reaction logged :)"}
 
 
+@app.delete("/react")
+async def reaction(input_data: ReactionInput):
+    message_id = input_data.message_id
+    emoji = input_data.emoji
+    if emoji is None:
+        return {"message": "[WARNING] No Emoji selected for deletion, did you mean /clearreacts?"}
+    remove_emoji_reaction(int(message_id), emoji)
+    return {"message": "reaction deleted"}
+
+@app.delete("/clearreacts")
+async def reaction(input_data: ReactionInput):
+    message_id = input_data.message_id
+    clear_emojis(int(message_id))
+    return {"message": "reaction deleted"}
+
+
 @app.get("/conversations")
 async def conversations():
     convs = getall_conversations()['conversations']
@@ -351,4 +403,5 @@ async def conversation(input_data: ConversationInput):
     else:
         return conv['Message']
 
-print()
+
+print("System started...")
