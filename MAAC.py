@@ -174,7 +174,7 @@ def getall_conversations():
 
 def get_conversation(conversation_id: int):
     conn = get_db()
-    info = Select(Conversation)
+    info = Select(Conversation).where(Conversation.id == conversation_id)
     conversations = conn.execute(info).scalars().all()
     if len(conversations) == 0:
         return {"Message": "[Error] Conversation not found"}
@@ -350,3 +350,5 @@ async def conversation(input_data: ConversationInput):
         return recover_messages_from_conversation(conv)
     else:
         return conv['Message']
+
+print()
