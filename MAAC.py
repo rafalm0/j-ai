@@ -57,6 +57,10 @@ class ReactionInput(BaseModel):
     emoji: str
 
 
+class ConversationInput(BaseModel):
+    conv_id: str
+
+
 # --------------------------------------- Startup -------------------------------------------------------------------
 # Event handler to initialize the database on startup
 @app.on_event("startup")
@@ -166,6 +170,20 @@ def getall_conversations():
     info = Select(Conversation)
     conversations = conn.execute(info).scalars().all()
     return {"conversations": conversations}
+
+
+def get_conversation(conversation_id: int):
+    conn = get_db()
+    info = Select(Conversation).where(Conversation.id == conversation_id)
+    conversations = conn.execute(info).scalars().all()
+    if len(conversations) == 0:
+        return {"Message": "[Error] Conversation not found"}
+    elif len(conversations) > 1:
+        print(f"[WARNING] More than one conversation matched on id {conversation_id}")
+        return {"Message": "[Error] Conversation not found"}
+    else:
+        conv = conversations[0]
+    return {"Message": "Retrival successful", "conversation": conv}
 
 
 def add_response(
@@ -307,9 +325,30 @@ async def reaction(input_data: ReactionInput):
 
 @app.get("/conversations")
 async def conversations():
-    convs = getall_conversations()
-    return convs
+    convs = getall_conversations()['conversations']
+    response = {"conversations": []}
+    for conv in convs:
+        _id = conv.id
+        _name = conv.conversation_name
+        _bot1 = conv.bot_1_name
+        _bot2 = conv.bot_2_name
+        _messages = conv.messages
+        _topic = ""
+        if _messages:
+            _topic = _messages[0].topic
+        c = {"id": _id, "name": _name, "bot1": _bot1, "bot2": _bot2, "Topic": _topic}
+        response['conversations'].append(c)
+    return response
 
 
+@app.post("/conversation")
+async def conversation(input_data: ConversationInput):
+    conv = get_conversation(conversation_id=int(input_data.conv_id))
+    if "conversation" in conv.keys():
+        print(conv['Message'])
+        conv = conv['conversation']
+        return recover_messages_from_conversation(conv)
+    else:
+        return conv['Message']
 
-print("hey yo")
+print()
