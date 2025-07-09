@@ -341,7 +341,7 @@ async def conversations():
     return response
 
 
-@app.get("/conversation")
+@app.post("/conversation")
 async def conversation(input_data: ConversationInput):
     conv = get_conversation(conversation_id=int(input_data.conv_id))
     if "conversation" in conv.keys():
