@@ -1,11 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uuid
 import os
-import sys
 from datetime import datetime
-from typing import Annotated, Generator
 
 from sqlalchemy.orm import Session
 from sqlalchemy import Select, Join
@@ -98,7 +95,7 @@ def get_or_create_conversation(
 
     Args:
         session: The SQLAlchemy session to use for database operations.
-        conversation_name: The name of the conversation to find or create.
+        conv_name: The name of the conversation to find or create.
         bot_1_name, bot_1_persona, bot_1_system: Details for bot 1.
                                                   These are optional for finding an existing
                                                   conversation, but REQUIRED if a new
@@ -223,7 +220,6 @@ def add_response(
     Adds a new message (response) to the database for a given conversation.
 
     Args:
-        session: The SQLAlchemy session to use.
         conversation_id: The ID of the conversation this message belongs to.
         message_content: The actual text content of the message.
         writer: The name of the bot (or user) who wrote the message.
@@ -277,13 +273,13 @@ def react_emoji(message: Message.id, emoji):
         print(
             f"[WARNING] More than one log of reaction {emoji} found in message with id {message}, skipping reaction...")
 
-    editted_reaction = None
+    edited_reaction = None
     if emoji_exist:
         react = reacts[0]
         react.quantity += 1
         conn.commit()
         print(f"Added +1 reaction to reaction {react.id}: {emoji}...")
-        editted_reaction = react
+        edited_reaction = react
     else:
         new_reaction = Reaction(
             message_id=message,
@@ -296,8 +292,8 @@ def react_emoji(message: Message.id, emoji):
         session.commit()
         session.refresh(new_reaction)
         print(f"Added new reaction to message {message}: {emoji}...")
-        editted_reaction = new_reaction
-    return editted_reaction
+        edited_reaction = new_reaction
+    return edited_reaction
 
 
 def get_emojis(message: Message.id):
@@ -310,7 +306,7 @@ def get_emojis(message: Message.id):
 
 def remove_message(message_id: int):
     """
-    Removes an message
+    Removes a message
     If the message exists, it is deleted from the database.
     If it doesn't exist, nothing happens.
     """
@@ -379,11 +375,11 @@ async def multi_agent_chat(input_data: ChatInput):
 
     conversation = get_or_create_conversation(conv_id=conversation_id)
     if conversation.id == conversation_id:
-        print("Convertation matched, recovering previous messages...")
+        print("Conversation matched, recovering previous messages...")
         aux = recover_messages_from_conversation(conversation, get_next_bot=True)
     else:
         print(
-            f"Convertation {conversation.id} not matched with {conversation_id}, falling back to new conversation... ")
+            f"Conversation {conversation.id} not matched with {conversation_id}, falling back to new conversation... ")
         aux = {"messages": [], "bot": build_bot_from_conversation(conversation, conversation.bot_1_name)}
     messages = aux['messages']
     next_bot = aux['bot']
@@ -396,15 +392,15 @@ async def multi_agent_chat(input_data: ChatInput):
                                citation=chunks)
 
     history = [
-        {"name": msg.writer, "content": msg.message, "message_id": msg.id}
+        {"name": msg['bot'], "content": msg['text'], "message_id": msg['message_id']}
         for msg in messages
     ]
     # history -> list like this: [{"name": "bot_1", "content": "hello"},{"name": "bot_2", "content": "hello_there"}]
     return {
-        "session_id": conversation.id,
-        "bot_name": next_bot.name,
-        "response": reply_response,
-        "response_id": new_message.id,
+        "conversation_id": conversation.id,
+        "bot": next_bot.name,
+        "text": reply_response,
+        "message_id": new_message.id,
         "full_conversation": history,
         "chat_color": next_bot.chat_color
     }
