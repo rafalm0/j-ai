@@ -141,7 +141,7 @@ def get_or_create_conversation(
     return new_conversation
 
 
-def recover_messages_from_conversation(conversation: Conversation, get_next_bot=False):
+def recover_messages_from_conversation(conversation: Conversation, get_next_bot=False, get_reacts=False):
     conn = get_db()
     info = Select(Message).where(Message.conversation_id == conversation.id)
     messages = conn.execute(info).scalars().all()
@@ -149,6 +149,16 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
 
     last_writer_name = messages[0].writer
     print(f"Last writer detected: {last_writer_name}, finding next one...")
+
+
+
+    result = {}
+
+    if get_reacts:
+        info = Select(Reaction).join(Message, Reaction.message_id == Message.id).where(
+            Message.conversation_id == conversation.id)
+        reacts = conn.execute(info).scalars().all()
+        result['reacts'] = reacts
 
     if get_next_bot:
         if last_writer_name == conversation.bot_1_name:
@@ -161,8 +171,9 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
             print(f"[WARNING] Bot name not found, falling back to bot 1")
             next_bot = build_bot_from_conversation(conversation, conversation.bot_1_name)
         print(f"Next bot will be: {next_bot}")
-        return {"messages": messages, "bot": next_bot}
-    return {"messages": messages}
+        result['bot'] = next_bot
+    result['messages'] = messages
+    return result
 
 
 def getall_conversations():
@@ -274,6 +285,14 @@ def react_emoji(message: Message.id, emoji):
     return editted_reaction
 
 
+def get_emojis(message: Message.id):
+    conn = get_db()
+    info = Select(Reaction).where(Reaction.message_id == message)
+    reacts = conn.execute(info).scalars().all()
+
+    return reacts
+
+
 def remove_emoji_reaction(message_id: int, emoji: str):
     """
     Removes an emoji reaction from a specific message.
@@ -297,6 +316,7 @@ def remove_emoji_reaction(message_id: int, emoji: str):
         print(f"No reaction {emoji} found on message {message_id}")
         return {"status": "not_found"}
 
+
 def clear_emojis(message_id: int):
     """
     Removes all emojis reaction from a specific message.
@@ -309,6 +329,7 @@ def clear_emojis(message_id: int):
     conn.commit()
 
     return {"status": "deleted"}
+
 
 # --------------------------------------- Endpoints -------------------------------------------------------------------
 @app.post("/multi-agent-chat")
@@ -359,6 +380,14 @@ async def reaction(input_data: ReactionInput):
     return {"message": "reaction logged :)"}
 
 
+@app.get("/react")
+async def reaction(input_data: ConversationInput):
+    cov_id = input_data.covnersation_id
+    reacts = get_emojis(cov_id)
+
+    return reacts
+
+
 @app.delete("/react")
 async def reaction(input_data: ReactionInput):
     message_id = input_data.message_id
@@ -367,6 +396,7 @@ async def reaction(input_data: ReactionInput):
         return {"message": "[WARNING] No Emoji selected for deletion, did you mean /clearreacts?"}
     remove_emoji_reaction(int(message_id), emoji)
     return {"message": "reaction deleted"}
+
 
 @app.delete("/clearreacts")
 async def reaction(input_data: ReactionInput):
@@ -399,7 +429,7 @@ async def conversation(input_data: ConversationInput):
     if "conversation" in conv.keys():
         print(conv['Message'])
         conv = conv['conversation']
-        return recover_messages_from_conversation(conv)
+        return recover_messages_from_conversation(conv,get_reacts=True)
     else:
         return conv['Message']
 
