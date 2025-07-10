@@ -156,11 +156,24 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
 
     result = {}
 
+    message_result = []
+    color = {True: "#D0F0FD", False: "#C1F0C1"}
+    flag = True
+    message_finder = {}
+    for i, message in enumerate(messages):  # convert message into dict with same structure
+        message_finder[message.id] = i
+        message_result.append({"message_id": message.id, "text": message.message, "bot": message.writer,
+                               "chat_color": color[flag], "reacts": []})
+        flag = not flag
+
     if get_reacts:
         info = Select(Reaction).join(Message, Reaction.message_id == Message.id).where(
             Message.conversation_id == conversation.id)
         reacts = conn.execute(info).scalars().all()
-        result['reacts'] = reacts
+
+        for react in reacts:  # add the reacts to respective message
+            message_result[message_finder[react.message_id]]['reacts'].append(
+                {"reaction": react.reaction_name, "quantity": react.quantity})
 
     if get_next_bot:
         if last_writer_name == conversation.bot_1_name:
@@ -174,7 +187,7 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
             next_bot = build_bot_from_conversation(conversation, conversation.bot_1_name)
         print(f"Next bot will be: {next_bot}")
         result['bot'] = next_bot
-    result['messages'] = messages
+    result['messages'] = message_result
     return result
 
 
@@ -293,7 +306,6 @@ def get_emojis(message: Message.id):
     reacts = conn.execute(info).scalars().all()
 
     return reacts
-
 
 
 def remove_message(message_id: int):
@@ -472,4 +484,5 @@ async def conversation(input_data: ConversationInput):
         return conv['Message']
 
 
+# recover_messages_from_conversation(Conversation(id=40), get_reacts=True)
 print("System started...")
