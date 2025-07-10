@@ -61,6 +61,10 @@ class ConversationInput(BaseModel):
     conv_id: str
 
 
+class MessageInput(BaseModel):
+    message_id: str
+
+
 # --------------------------------------- Startup -------------------------------------------------------------------
 # Event handler to initialize the database on startup
 @app.on_event("startup")
@@ -149,8 +153,6 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
 
     last_writer_name = messages[0].writer
     print(f"Last writer detected: {last_writer_name}, finding next one...")
-
-
 
     result = {}
 
@@ -293,6 +295,31 @@ def get_emojis(message: Message.id):
     return reacts
 
 
+
+def remove_message(message_id: int):
+    """
+    Removes an message
+    If the message exists, it is deleted from the database.
+    If it doesn't exist, nothing happens.
+    """
+    conn = get_db()
+    info = Select(Message).where(Message.id == message_id)
+    messages = conn.execute(info).scalars().all()
+
+    if len(messages) == 1:
+        message = messages[0]
+        conn.delete(message)
+        conn.commit()
+        print(f"Deleted message {message}")
+        return {"status": "deleted", "message_id": message_id}
+    elif len(messages) > 1:
+        print(f"[WARNING] Multiple messages found with id {message_id}, skipping delete...")
+        return {"status": "error", "reason": "duplicate reactions"}
+    else:
+        print(f"No message found with id: {message_id}")
+        return {"status": "not_found"}
+
+
 def remove_emoji_reaction(message_id: int, emoji: str):
     """
     Removes an emoji reaction from a specific message.
@@ -405,6 +432,17 @@ async def reaction(input_data: ReactionInput):
     return {"message": "reaction deleted"}
 
 
+@app.delete("/message")
+async def del_message(input_data: MessageInput):
+    response = {}
+
+    message_id = int(input_data.message_id)
+    remove_message(int(message_id))
+
+    response['message'] = 'message deleted'
+    return response
+
+
 @app.get("/conversations")
 async def conversations():
     convs = getall_conversations()['conversations']
@@ -429,7 +467,7 @@ async def conversation(input_data: ConversationInput):
     if "conversation" in conv.keys():
         print(conv['Message'])
         conv = conv['conversation']
-        return recover_messages_from_conversation(conv,get_reacts=True)
+        return recover_messages_from_conversation(conv, get_reacts=True)
     else:
         return conv['Message']
 
