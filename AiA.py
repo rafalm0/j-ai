@@ -1,6 +1,7 @@
 from Util import load_embeddings, rerank, vector_retreival
-from default_values_prompts import bot_1_name,bot_2_name,bot_1_knowledge_base,bot_2_knowledge_base
+from default_values_prompts import bot_1_name, bot_2_name, bot_1_knowledge_base, bot_2_knowledge_base
 import numpy as np
+import random
 
 
 class Bot:
@@ -65,7 +66,11 @@ class Bot:
 
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=messages
+            messages=messages,
+            temperature=0.2,
+            seed=random.random() * 1000,
+            repetition_penalty=2,  # arbitrary number?
+            frequency_penalty=1,  # [-2,2]
         )
         reply = response.choices[0].message.content
         self.history.append({"role": "assistant", "content": reply})

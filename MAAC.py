@@ -47,6 +47,9 @@ class ChatInput(BaseModel):
     session_id: str | None = None  # if None we are stating a new convo
     topic: str
     cite: bool = False
+    conversation_name: str | None = None
+    bot_1_name: str | None = None
+    bot_2_name: str | None = None
 
 
 class ReactionInput(BaseModel):
@@ -373,7 +376,11 @@ async def multi_agent_chat(input_data: ChatInput):
     if conversation_id is not None:
         conversation_id = int(conversation_id)
 
-    conversation = get_or_create_conversation(conv_id=conversation_id)
+
+    conversation = get_or_create_conversation(conv_id=conversation_id,
+                                              conv_name=input_data.conversation_name,
+                                              bot_1_name=input_data.bot_1_name,
+                                              bot_2_name=input_data.bot_2_name)
     if conversation.id == conversation_id:
         print("Conversation matched, recovering previous messages...")
         aux = recover_messages_from_conversation(conversation, get_next_bot=True)
