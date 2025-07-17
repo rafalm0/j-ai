@@ -68,7 +68,7 @@ class Bot:
             model=self.model,
             messages=messages,
             temperature=0.2,
-            seed=random.random() * 1000,
+            seed=random.randint(0, 1000),
             repetition_penalty=2,  # arbitrary number?
             frequency_penalty=1,  # [-2,2]
         )
