@@ -151,6 +151,8 @@ def recover_messages_from_conversation(conversation: Conversation, get_next_bot=
     messages = conn.execute(info).scalars().all()
     messages = sorted(messages, key=lambda msg: msg.created_at, reverse=True)
 
+    if len(messages) < 1:  # the conversation had no message to recover
+        return {"messages": []}  # nothing to return
     last_writer_name = messages[0].writer
     print(f"Last writer detected: {last_writer_name}, finding next one...")
 
