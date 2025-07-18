@@ -465,7 +465,7 @@ async def conversations():
     response = {"conversations": []}
     for conv in convs:
         _id = conv.id
-        _name = conv.conv_name
+        _name = conv.conversation_name
         _bot1 = conv.bot_1_name
         _bot2 = conv.bot_2_name
         _messages = conv.messages
