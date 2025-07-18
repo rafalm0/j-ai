@@ -69,7 +69,7 @@ class Bot:
             messages=messages,
             temperature=0.2,
             seed=random.randint(0, 1000),
-            repetition_penalty=2,  # arbitrary number?
+            # repetition_penalty=2,  # arbitrary number?
             frequency_penalty=1,  # [-2,2]
         )
         reply = response.choices[0].message.content

@@ -47,7 +47,7 @@ class ChatInput(BaseModel):
     session_id: str | None = None  # if None we are stating a new convo
     topic: str
     cite: bool = False
-    conversation_name: str | None = None
+    conv_name: str | None = None
     bot_1_name: str | None = None
     bot_2_name: str | None = None
 
@@ -373,11 +373,13 @@ def clear_emojis(message_id: int):
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
     conversation_id = input_data.session_id
+    if conversation_id == 'None':
+        conversation_id = None
     if conversation_id is not None:
         conversation_id = int(conversation_id)
 
     conversation = get_or_create_conversation(conv_id=conversation_id,
-                                              conv_name=input_data.conversation_name,
+                                              conv_name=input_data.conv_name,
                                               bot_1_name=input_data.bot_1_name,
                                               bot_2_name=input_data.bot_2_name)
     if conversation.id == conversation_id:
@@ -463,7 +465,7 @@ async def conversations():
     response = {"conversations": []}
     for conv in convs:
         _id = conv.id
-        _name = conv.conversation_name
+        _name = conv.conv_name
         _bot1 = conv.bot_1_name
         _bot2 = conv.bot_2_name
         _messages = conv.messages
