@@ -372,8 +372,10 @@ def clear_emojis(message_id: int):
 # --------------------------------------- Endpoints -------------------------------------------------------------------
 @app.post("/multi-agent-chat")
 async def multi_agent_chat(input_data: ChatInput):
+    print("New MAAC request:")
+    print(input_data)
     conversation_id = input_data.session_id
-    if conversation_id == 'None':
+    if (conversation_id == 'None') or (conversation_id == 'undefined'):
         conversation_id = None
     if conversation_id is not None:
         conversation_id = int(conversation_id)
@@ -386,8 +388,12 @@ async def multi_agent_chat(input_data: ChatInput):
         print("Conversation matched, recovering previous messages...")
         aux = recover_messages_from_conversation(conversation, get_next_bot=True)
     else:
-        print(
-            f"Conversation {conversation.id} not matched with {conversation_id}, falling back to new conversation... ")
+        if conversation_id is None:
+            print(
+                f"Start of conversation detected,creating new conversation id {conversation.id}... ")
+        else:
+            print(
+                f"Conversation {conversation.id} not matched with {conversation_id}, falling back to new conversation... ")
         aux = {"messages": [], "bot": build_bot_from_conversation(conversation, conversation.bot_1_name)}
     messages = aux['messages']
     next_bot = aux['bot']
