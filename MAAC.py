@@ -44,7 +44,7 @@ model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 # --------------------------------------- Inputs -------------------------------------------------------------------
 
 class ChatInput(BaseModel):
-    session_id: str | None = None  # if None we are stating a new convo
+    conversation_id: str | None = None  # if None we are stating a new convo
     topic: str
     cite: bool = False
     conv_name: str | None = None
@@ -376,7 +376,7 @@ def clear_emojis(message_id: int):
 async def multi_agent_chat(input_data: ChatInput):
     print("New MAAC request:")
     print(input_data)
-    conversation_id = input_data.session_id
+    conversation_id = input_data.conversation_id
     if (conversation_id == 'None') or (conversation_id == 'undefined'):
         conversation_id = None
     if conversation_id is not None:
