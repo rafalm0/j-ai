@@ -42,8 +42,8 @@ class Bot:
     def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5,
                           cite=False, external_history=None):
         system_prompt = (f"Continue the conversation naturally.Be conversational, as if you were chatting with a "
-                         f"friend Use logical connections and comparisons when changing topic.Use less than 150 "
-                         f"words.Be conversational and alternate between only replying and also making questions.")
+                         f"friend Use logical connections and comparisons.Use less than 250 "
+                         f"words.And only make questions that would change the topic to your time after a few sentences.")
         system_messages = [{"role": "system", "content": self.persona_prompt}]
         system_messages.append({"role": "system", "content": f"Topic: {subject}" + system_prompt})
         reranked_chunks = ''
