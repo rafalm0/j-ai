@@ -64,6 +64,7 @@ class Bot:
 
         messages = system_messages + self.history
 
+        print(messages)
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
