@@ -22,8 +22,25 @@ class Bot:
         self.history = []
         return
 
+    def incorporate_messages_into_history(self, external_history: list):
+
+        for message in external_history:
+            message_dict = {"role": '', "content": ""}
+            bot = message['bot']
+            text = message['text']
+            if bot == self.name:
+                message_dict['role'] = 'user'
+            else:
+                message_dict['role'] = 'assistant'
+            message_dict['content'] = text
+            try:
+                self.history.append(message_dict)
+            except:
+                print(f"Couldn't parse {message}")
+        return
+
     def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5,
-                          cite=False):
+                          cite=False, external_history=None):
         system_prompt = (f"Continue the conversation naturally.Be conversational, as if you were chatting with a "
                          f"friend Use logical connections and comparisons when changing topic.Use less than 150 "
                          f"words.Be conversational and ask the user their opinion.")
@@ -62,8 +79,9 @@ class Bot:
         if user_prompt:
             self.history.append({"role": "user", "content": user_prompt})
 
+        if external_history is not None:
+            self.incorporate_messages_into_history(external_history)
         messages = system_messages + self.history
-
         print(messages)
         response = self.client.chat.completions.create(
             model=self.model,

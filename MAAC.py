@@ -401,7 +401,7 @@ async def multi_agent_chat(input_data: ChatInput):
     next_bot = aux['bot']
     topic = input_data.topic
     cite = input_data.cite
-    response = next_bot.generate_response(subject=topic, cite=cite)
+    response = next_bot.generate_response(subject=topic, cite=cite,external_history=messages)
     reply_response = response['reply']
     chunks = response['chunks']
     new_message = add_response(int(conversation.id), message_content=reply_response, writer=next_bot.name, topic=topic,
