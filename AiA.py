@@ -43,7 +43,7 @@ class Bot:
                           cite=False, external_history=None):
         system_prompt = (f"Continue the conversation naturally.Be conversational, as if you were chatting with a "
                          f"friend Use logical connections and comparisons when changing topic.Use less than 150 "
-                         f"words.Be conversational and ask the user their opinion.")
+                         f"words.Be conversational and alternate between only replying and also making questions.")
         system_messages = [{"role": "system", "content": self.persona_prompt}]
         system_messages.append({"role": "system", "content": f"Topic: {subject}" + system_prompt})
         reranked_chunks = ''
