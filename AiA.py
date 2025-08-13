@@ -29,14 +29,17 @@ class Bot:
             bot = message['bot']
             text = message['text']
             if bot == self.name:
+                print(f"[DEBUG] Incorporating message from *previous version of me* ({self.name}): {text}")
                 message_dict['role'] = 'user'
             else:
+                print(f"[DEBUG] Incorporating message from another bot "
+                      f"(me: {self.name} | source: {bot}): {text}")
                 message_dict['role'] = 'assistant'
             message_dict['content'] = text
             try:
                 self.history.append(message_dict)
             except:
-                print(f"Couldn't parse {message}")
+                print(f"[DEBUG] Couldn't parse {message}")
         return
 
     def generate_response(self, subject: str, user_prompt: str = None, use_knowledge: bool = True, top_k: int = 5,
